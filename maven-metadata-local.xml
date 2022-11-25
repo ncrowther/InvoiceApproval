@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>com.myspace</groupId>
+  <artifactId>InvoiceApproval</artifactId>
+  <versioning>
+    <versions>
+      <version>1.0.0-SNAPSHOT</version>
+    </versions>
+    <lastUpdated>20221122104652</lastUpdated>
+  </versioning>
+</metadata>
