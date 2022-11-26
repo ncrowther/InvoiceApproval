@@ -1,4 +1,4 @@
-®ç// Description
+¶ç// Description
 //	Process invoices from outlook
 //
 // Author:	Nigel T. Crowther
@@ -340,7 +340,7 @@ beginSub --name executeOCRScript
 // Excute rules (using IBM DM)
 	executeScript --name "${projectBase}\\bot\\determineInvoiceTypeDM.wal" --parameters "in_sender=${emailSender},in_subject=${emailSubject},in_invoice=${invoice}" --output "out_success=${scriptSuccess},out_code=${result_code},out_desc=${result_desc},out_company=${company},out_companyCode=${companyCode},out_supplierId=${supplierId}" success=value errorMessage=errormessage
 // Excute rules (using RPA Rules)
-//executeScript --name "${botScriptBaseDir}/determineInvoiceType.wal" --parameters "in_subject=${emailSubject},in_sender=${emailSender},in_attachmentType=\"pdf\"" --output "out_success=${scriptSuccess},out_code=${result_code},out_desc=${result_desc},out_company=${company},out_companyCode=${companyCode},out_supplierId=${supplierId}" success=value
+	// executeScript --name "${botScriptBaseDir}/determineInvoiceType.wal" --parameters "in_subject=${emailSubject},in_sender=${emailSender},in_invoice=${invoice}" --output "out_success=${scriptSuccess},out_code=${result_code},out_desc=${result_desc},out_company=${company},out_companyCode=${companyCode},out_supplierId=${supplierId}" success=value
 	if --left "${scriptSuccess}" --operator "Is_True" --negate
 		setVar --name "${success}" --value false
 		incrementVar --number ${unidentifiedInvoiceCount}
