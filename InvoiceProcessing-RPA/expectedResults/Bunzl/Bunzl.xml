@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<MCC_KOFAX_SUPPLIER_INVOICE>
+  <Header>
+    <DocumentType>INVOICE</DocumentType>
+    <ImageFileName>\\uks-stoifs-01\nfs\KOFAX_IMAGES\APPS10-UR\230018_STW-INV04510345.xlsx</ImageFileName>
+    <CompanyCode>AA</CompanyCode>
+    <InvoiceNumber>J221197</InvoiceNumber>
+    <PurchaseOrderReference></PurchaseOrderReference>
+    <SupplierIdentity>200093</SupplierIdentity>
+    <InvoiceDate>25/09/2022</InvoiceDate>
+    <Currency>GBP</Currency>
+    <NetCurrencyAmount>49633.43</NetCurrencyAmount>
+    <VATCurrencyAmount>9860.87</VATCurrencyAmount>
+  </Header>
+</MCC_KOFAX_SUPPLIER_INVOICE>

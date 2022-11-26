@@ -1,0 +1,118 @@
+ã)defVar --name projectBase --type String
+defVar --name unpaidInvoicesFolder --type String
+defVar --name logDir --type String
+defVar --name paidInvoicesFolder --type String
+defVar --name failedInvoicesFolder --type String
+defVar --name testInvoicesFolder --type String
+defVar --name botScriptBaseDir --type String
+defVar --name ifsDropFolder --type String
+defVar --name botScript --type String
+defVar --name currentMessage --type EmailMessage
+defVar --name emailConnection --type EmailConnection
+defVar --name fs --type FileSystem
+defVar --name success --type Boolean
+defVar --name folderExists --type Boolean
+defVar --name in_emailServerConnectionInstance --type EmailConnection --parameter 
+defVar --name in_invoice --type String --value "D:\\A_Consultancy\\Presales\\2022\\Midcounties\\Git\\MidcountiesExpenseBot\\invoiceSamples\\WaterPlus\\230018_STW-INV04510345.pdf" --parameter 
+defVar --name in_subject --type String --value WaterPlus --parameter 
+defVar --name out_success --type Boolean --value True --output 
+defVar --name out_code --type String --value 0 --output 
+defVar --name out_desc --type String --value SUCCESS --output 
+defVar --name emailBody --type String --value "Please pay the invoice attached"
+defVar --name emailUsername --type String
+defVar --name recipients --type List --innertype String
+defVar --name attachments --type List --innertype String
+defVar --name invoices --type List --innertype String
+defVar --name invoice --type String
+defVar --name invoiceFolders --type List --innertype String
+defVar --name invoiceFolder --type String
+defVar --name testEmailSubject --type String
+defVar --name outlookUser --type String
+
+goSub --label prepareFolders
+goSub --label sendTestEmails
+
+beginSub --name prepareFolders
+
+getParameter --name invoiceBasePath --comment "Get the base path for the invoices" projectBase=value
+getParameter --name outlookUser --comment "Get the outlook user that is  used to send and receive invoice emails" outlookUser=value
+
+setVar --name "${unpaidInvoicesFolder}" --value "${projectBase}\\unpaidInvoices"
+setVar --name "${paidInvoicesFolder}" --value "${projectBase}\\paidInvoices"
+setVar --name "${failedInvoicesFolder}" --value "${projectBase}\\failedInvoices"
+setVar --name "${testInvoicesFolder}" --value "${projectBase}\\testInvoices"
+setVar --name "${botScriptBaseDir}" --value "${projectBase}\\bot"
+setVar --name "${ifsDropFolder}" --value "${projectBase}\\ifs"
+setVar --name "${logDir}" --value "${projectBase}\\logs\\"
+setVar --name "${botScriptBaseDir}" --value "${projectBase}\\bot"
+
+ifFolder --path "${unpaidInvoicesFolder}" --fileSystem ${fs} folderExists=value
+if --left "${folderExists}" --operator "Is_True"
+	deleteDir --directoryname "${unpaidInvoicesFolder}" --fileSystem ${fs}
+endIf
+
+ifFolder --path "${paidInvoicesFolder}" --fileSystem ${fs} folderExists=value
+if --left "${folderExists}" --operator "Is_True"
+	deleteDir --directoryname "${paidInvoicesFolder}" --fileSystem ${fs}
+endIf
+
+ifFolder --path "${failedInvoicesFolder}" --fileSystem ${fs} folderExists=value
+if --left "${folderExists}" --operator "Is_True"
+	deleteDir --directoryname "${failedInvoicesFolder}" --fileSystem ${fs}
+endIf
+
+ifFolder --path "${ifsDropFolder}" --fileSystem ${fs} folderExists=value
+if --left "${folderExists}" --operator "Is_True"
+	deleteDir --directoryname "${ifsDropFolder}" --fileSystem ${fs}
+endIf
+
+ifFolder --path "${logDir}" --fileSystem ${fs} folderExists=value
+if --left "${folderExists}" --operator "Is_True"
+	deleteDir --directoryname "${logDir}" --fileSystem ${fs}
+endIf
+
+endSub
+
+
+beginSub --name sendTestEmails
+
+imapConnect --connection ntcoutlook365_microsoft_exchange_imap --mailhost "outlook.office365.com" --mailport 993 --usessl  --integrationuseconnectiontosend  --integrationsmtpcredentials  --integrationsmtphost "smtp.office365.com" --integrationsmtpport 587 --integrationsmtpusessl  --authenticationtype "IntegrationConnection" in_emailServerConnectionInstance=value
+
+insert --index 1 --value "${outlookUser}" --collection "${recipients}"
+
+getDirectories --path "${testInvoicesFolder}" --fileSystem ${fs} invoiceFolders=value
+foreach --collection "${invoiceFolders}" --variable "${invoiceFolder}"
+	
+	getFiles --path "${invoiceFolder}" invoices=value
+	foreach --collection "${invoices}" --variable "${invoice}"
+		
+		goSub --label sendInvoice
+		
+	endFor
+	
+endFor
+
+// Disconnect from the server.
+emailDisconnect --connection ${in_emailServerConnectionInstance}
+
+// Delay to prevent allow all emails to appear in inbox	
+delay --timeout "00:00:40"
+
+endSub
+
+
+beginSub --name sendInvoice
+
+// Create email
+setVar --name "${attachments}" --value "[${invoice}]"
+
+replaceText --texttoparse "${invoiceFolder}" --useregex  --pattern ".*\\\\" --regexOptions "0" --comment "Remove file path to get name of company" testEmailSubject=value
+setVar --name "${testEmailSubject}" --value "${testEmailSubject} invoice"
+logMessage --message "Sending test invoice: ${testEmailSubject}" --type "Info"
+emailSend --connection ${in_emailServerConnectionInstance} --to ${recipients} --from "${outlookUser}" --subject "${testEmailSubject}" --bodytype "Text" --body "${emailBody}" --attachments ${attachments}
+// Delay to prevent spam detection	
+delay --timeout "00:00:00"
+
+endSub
+
+*21.0.6.0

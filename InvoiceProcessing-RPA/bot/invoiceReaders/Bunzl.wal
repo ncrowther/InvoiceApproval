@@ -1,0 +1,115 @@
+¦+// Description
+//	Process invoice
+// Input Variables
+//	in_invoice			- The invoice to process (excel file)
+//
+// Output Variables
+// 	out_invoiceNumber		- The extracted invoice number
+// 	out_invoiceDate			- The invoice date
+// 	out_amountNumber		- The invoice total amount
+// 	out_vatNumber			- The invoice VAT amount
+// 	out_vatNumber			- The invoice VAT amount
+// 	out_success			- Boolean value indicating success or failure
+// 	out_code				- 00 if success, any other number represents an error code
+// 	out_desc				- Description of error code. For example "Failed to parse VAT
+//
+// Author:	Nigel T. Crowther
+// Date: 		26-Oct-2022
+// Copyright IBM Corporation 2022. All rights reserved
+//
+defVar --name in_invoice --type String --value "D:/A_Consultancy/Presales/2022/Midcounties/Git/MidcountiesExpenseBot/invoiceSamples/WaterPlus/230018_STW-INV04510345.pdf" --parameter  --required 
+defVar --name out_invoiceNumber --type String --output 
+defVar --name out_invoiceDate --type String --output 
+defVar --name out_amountNumber --type Numeric --value 0 --output 
+defVar --name out_vatNumber --type Numeric --value 0 --output 
+defVar --name out_success --type Boolean --value True --output 
+defVar --name out_code --type String --value 0 --output 
+defVar --name out_desc --type String --value SUCCESS --output 
+defVar --name amountText --type String
+defVar --name fieldName --type String
+defVar --name invoiceDateTime --type DateTime
+defVar --name extractedImage --type Image
+defVar --name excelInstance --type Excel
+defVar --name MICROSOFT_EXCEL_EPOCH --type DateTime --value "1899-12-30 00:00:00"
+defVar --name days_to_add_to_microsoft_excel_epoch --type Numeric
+
+onError --executenext 
+
+goSub --label processInvoice
+
+beginSub --name processInvoice
+excelOpen --file "D:\\A_Consultancy\\Presales\\2022\\Midcounties\\Git\\MidcountiesExpenseBot\\invoiceSamples\\misc\\Bunzl.xlsx" out_success=success out_desc=reason excelInstance=value
+if --left "${out_success}" --operator "Is_True" --negate 
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to read PDF ${in_invoice}"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+
+// Extract Total Amount
+excelGet --file ${excelInstance} --getfirstsheet  --row 55 --column 9 amountText=value
+
+setVar --name "${fieldName}" --value amount
+onError --label ParsingErrorHandler
+convertStringToNumber --culture "en-US" --text "${amountText}" --allowdecimalpoint  --allowthousands  out_amountNumber=value
+if --left "${out_success}" --operator "Is_True" --negate 
+	// Return from parsing exception
+	return
+endIf
+
+// Extract Vat
+excelGet --file ${excelInstance} --getfirstsheet  --row 57 --column 9 amountText=value
+if --left "${out_success}" --operator "Is_True" --negate 
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to read vat amount"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+setVar --name "${fieldName}" --value vat
+convertStringToNumber --culture "en-US" --text "${amountText}" --allowdecimalpoint  --allowthousands  out_vatNumber=value
+onError --label ParsingErrorHandler
+if --left "${out_success}" --operator "Is_True" --negate 
+	// Return from parsing exception
+	return
+endIf
+
+// Extract invoice number
+excelGet --file ${excelInstance} --getfirstsheet  --row 21 --column 9 out_invoiceNumber=value
+if --left "${out_success}" --operator "Is_True" --negate 
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to read invoice number"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+
+// Extract invoice date
+excelGet --file ${excelInstance} --getfirstsheet  --row 21 --column 1 days_to_add_to_microsoft_excel_epoch=value
+if --left "${out_success}" --operator "Is_True" --negate 
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to read invoice date"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+//Microsoft Excel stores dates as floating point numbers that are added to the epoch to give the date time. The epoch for Microsoft Excel is actually 1/0/1900, to compensate for the false leap year assumption that the system takes for the year 1900.
+//Thus, it is necessary to take 2 days from 1/1/1900 to compensate for the fake January 0th and February 29th.
+//This code assumes Microsoft Excel's epoch is set to year 1900. Recent versions allows the user to choose between epoch on year 1900 or 1904.
+addToDateTime --date "${MICROSOFT_EXCEL_EPOCH}" --value ${days_to_add_to_microsoft_excel_epoch} --type "Days" invoiceDateTime=value
+dateTimeToText --culture "fr-FR" --date "${invoiceDateTime}" --standardformat "ShortDate" out_invoiceDate=value
+logMessage --message " Extracted Invoice Date: ${out_invoiceDate}" --type "Error"
+
+
+logMessage --message "Success: ${out_success}\r\nNumber: ${out_invoiceNumber} \r\nDate: ${out_invoiceDate}\r\nAmount: ${out_amountNumber}\r\nVat: ${out_vatNumber}" --type "Info"
+endSub
+
+beginSub --name ParsingErrorHandler
+setVar --name "${out_success}" --value false
+setVar --name "${out_code}" --value 99
+setVar --name "${out_desc}" --value "Failed to parse ${fieldName} in ${in_invoice}"
+logMessage --message " ${out_desc}" --type "Error"
+recover
+endSub
+*21.0.6.0

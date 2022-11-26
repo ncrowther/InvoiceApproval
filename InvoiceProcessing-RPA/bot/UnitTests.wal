@@ -1,0 +1,118 @@
+ƒ5defVar --name projectBase --type String
+defVar --name processedResultsFolder --type String
+defVar --name unpaidInvoicesFolder --type String
+defVar --name expectedResultsFolder --type String
+defVar --name expectedResults --type List --innertype String
+defVar --name actualData --type String
+defVar --name expectedData --type String
+defVar --name fs --type FileSystem
+defVar --name attachmentsDirectory --type List --innertype String
+defVar --name currentMessage --type EmailMessage
+defVar --name emailConnection --type EmailConnection
+defVar --name processedFileReader --type TextFileReader
+defVar --name processedFilePath --type String
+defVar --name expectedFilePath --type String
+defVar --name expectedInvoiceNumber --type String
+defVar --name processedFileName --type String
+defVar --name expectedSupplierId --type String
+defVar --name expectedInvoiceDate --type String
+defVar --name expectedNetCurrencyAmount --type String
+defVar --name expectedVatCurrencyAmount --type String
+defVar --name actualInvoiceNumber --type String
+defVar --name actualSupplierId --type String
+defVar --name actualInvoiceDate --type String
+defVar --name actualNetCurrencyAmount --type String
+defVar --name actualVatCurrencyAmount --type String
+defVar --name logDir --type String
+defVar --name paidInvoicesFolder --type String
+defVar --name failedInvoicesFolder --type String
+defVar --name ocrScriptBaseDir --type String
+defVar --name ifsDropFolder --type String
+defVar --name folderExists --type Boolean
+defVar --name outlookUser --type String
+defVar --name outlookPwd --type SecureString
+defVar --name success --type Boolean
+defVar --name testMessage --type String
+defVar --name testFailuresCount --type Numeric --value 0
+defVar --name fileExists --type Boolean
+defVar --name invoiceFolders --type List --innertype String
+defVar --name invoiceTypeFolder --type String
+defVar --name invoiceType --type String
+
+
+getParameter --name invoiceBasePath --comment "Get the base path for the invoices" projectBase=value
+
+setVar --name "${expectedResultsFolder}" --value "${projectBase}\\expectedResults"
+setVar --name "${processedResultsFolder}" --value "${projectBase}\\ifs"
+
+//executeScript --name "${projectBase}\\bot\\prepareTest.wal" success=value
+//executeScript --name "${projectBase}\\bot\\invoiceBot.wal" success=value
+
+onError --label evaluateException
+
+goSub --label testCase1
+
+beginSub --name testCase1
+
+testCase --id 1 --title ResultsScanned --description "Test all Invoices" --category OCR --result "All xml files compare to expected results"
+
+getDirectories --path "${expectedResultsFolder}" --fileSystem ${fs} invoiceFolders=value
+foreach --collection "${invoiceFolders}" --variable "${invoiceTypeFolder}"
+	
+	getFiles --path "${invoiceTypeFolder}" --fileSystem ${fs} expectedResults=value
+	foreach --collection "${expectedResults}" --variable "${expectedFilePath}"
+		
+		// Get Expected Results		
+		readAllText --filepath "${expectedFilePath}" --encoding "Default" --fileSystem ${fs} expectedData=value
+		mapXml --xml "${expectedData}" --removenamespaces  --mappings "/MCC_KOFAX_SUPPLIER_INVOICE/Header/InvoiceNumber==${expectedInvoiceNumber},/MCC_KOFAX_SUPPLIER_INVOICE/Header/SupplierIdentity==${expectedSupplierId},/MCC_KOFAX_SUPPLIER_INVOICE/Header/InvoiceDate==${expectedInvoiceDate},/MCC_KOFAX_SUPPLIER_INVOICE/Header/NetCurrencyAmount==${expectedNetCurrencyAmount},/MCC_KOFAX_SUPPLIER_INVOICE/Header/VATCurrencyAmount==${expectedVatCurrencyAmount}"
+		
+		// Get Actual Results
+		goSub --label getActualData
+		mapXml --xml "${actualData}" --removenamespaces  --mappings "/MCC_KOFAX_SUPPLIER_INVOICE/Header/InvoiceNumber==${actualInvoiceNumber},/MCC_KOFAX_SUPPLIER_INVOICE/Header/SupplierIdentity==${actualSupplierId},/MCC_KOFAX_SUPPLIER_INVOICE/Header/InvoiceDate==${actualInvoiceDate},/MCC_KOFAX_SUPPLIER_INVOICE/Header/NetCurrencyAmount==${actualNetCurrencyAmount},/MCC_KOFAX_SUPPLIER_INVOICE/Header/VATCurrencyAmount==${actualVatCurrencyAmount}"
+		
+		logMessage --message "Unit test Invoice: ${actualInvoiceNumber}" --type "Info"
+		
+		setVar --name "${testMessage}" --value "Invoice number:  ${actualInvoiceNumber} Expected ${expectedInvoiceNumber}"
+		assert --message "${testMessage}" --left "${actualInvoiceNumber}" --operator "Equal_To" --right "${expectedInvoiceNumber}"
+		setVar --name "${testMessage}" --value "SupplierId: ${actualSupplierId} Expected ${expectedSupplierId}"
+		assert --message "${testMessage}" --left "${actualSupplierId}" --operator "Equal_To" --right "${expectedSupplierId}"
+		setVar --name "${testMessage}" --value "Invoice Date: ${actualInvoiceDate} Expected ${expectedInvoiceDate}"
+		assert --message "${testMessage}" --left "${actualInvoiceDate}" --operator "Contains" --right "${expectedInvoiceDate}"
+		setVar --name "${testMessage}" --value "Net Currency: ${actualNetCurrencyAmount} Expected ${expectedNetCurrencyAmount}"
+		assert --message "${testMessage}" --left "${actualNetCurrencyAmount}" --operator "Equal_To" --right "${expectedNetCurrencyAmount}"
+		setVar --name "${testMessage}" --value "Vat:  ${actualVatCurrencyAmount} Expected ${expectedVatCurrencyAmount}"
+		assert --message "${testMessage}" --left "${actualVatCurrencyAmount}" --operator "Equal_To" --right "${expectedVatCurrencyAmount}"
+	endFor
+	
+endFor
+
+logMessage --message "Unit test completed with ${testFailuresCount} failures" --type "Info"
+
+endSub
+
+beginSub --name getActualData
+
+replaceText --texttoparse "${invoiceTypeFolder}" --useregex  --pattern ".*\\\\" --regexOptions "0" --comment " getinvoice type subfolder" invoiceType=value
+replaceText --texttoparse "${expectedFilePath}" --textpattern "${expectedResultsFolder}" processedFileName=value
+setVar --name "${processedFilePath}" --value "${processedResultsFolder}${processedFileName}"
+
+replaceText --texttoparse "${processedFilePath}" --textpattern "${invoiceType}\\" processedFilePath=value
+ifFile --file "${processedFilePath}" --fileSystem ${fs} fileExists=value
+if --left "${fileExists}" --operator "Is_True" --negate 
+	logMessage --message "Stopping tests.  Expected file ${processedFilePath} does not exist" --type "Error"
+	stopExecution
+	//failTest --message "File ${processedFilePath} does not exist"
+endIf
+
+openTextReader --share "Read" --path "${processedFilePath}" --encoding "Default" processedFileReader=value
+logMessage --message "Checking: ${processedFilePath}" --type "Info"
+readAllText --filepath "${processedFilePath}" --encoding "Default" --fileSystem ${fs} actualData=value
+
+endSub
+
+beginSub --name evaluateException
+logMessage --message "Failed test  ${testMessage}: Comparing ${processedFilePath} with ${expectedFilePath}" --type "Info"
+incrementVar --number ${testFailuresCount}
+recover
+endSub
+*21.0.6.0

@@ -1,0 +1,89 @@
+ï*// Description
+//	Determine invoice type based on input data
+// Input Variables
+//	in_sender			- The sender email address
+//	in_subject			- The email subject
+//	in_invoice	   	      - The invoice containing an extension indicating the type of attachment
+//
+// Output Variables
+// 	out_ocrScript			- The ocr script to run
+// 	out_companyCode			- The company code
+// 	out_supplierId			- The supplier identifier
+// 	out_success			- Boolean value indicating success or failure
+//	out_code				- 00 if success, any other number represents an error code
+//    out_desc				- Description of error code. For example "Failed to determine invoice type"
+//
+// Author:	Nigel T. Crowther
+// Date: 	26-Oct-2022
+// Copyright IBM Corporation 2022. All rights reserved
+//
+defVar --name in_sender --type String --value "rpabot@midcounties.coop" --parameter  --required
+defVar --name in_subject --type String --value "Bunzl invoices #1-3" --parameter  --required
+defVar --name in_invoice --type String --value "c:\\temp\\bunzl.xlsx" --parameter  --required
+defVar --name out_company --type String --output
+defVar --name out_companyCode --type String --output
+defVar --name out_supplierId --type String --output
+defVar --name out_success --type Boolean --value True --output
+defVar --name out_code --type Numeric --value 0 --output
+defVar --name out_desc --type String --value OK --output
+defVar --name companyCol --type Numeric --value 3
+defVar --name companyNameCol --type Numeric --value 2
+defVar --name companyCodeCol --type Numeric --value 3
+defVar --name supplierIdCol --type Numeric --value 1
+defVar --name attachmentType --type String --value XLSX
+defVar --name payload --type String
+defVar --name response --type String
+defVar --name jsonData --type String
+defVar --name extractionSuccess --type Boolean
+defVar --name extractedTable --type DataTable
+defVar --name tableRows --type Numeric
+defVar --name tableColumns --type Numeric
+//defVar --name decisionServiceEndPoint --type String --value "http://localhost:8080/invoiceType"
+defVar --name decisionServiceEndPoint --type String --value "http://localhost:8080/kie-server/services/rest/server/containers/emailClassification_1.0.0-SNAPSHOT/dmn"
+replaceText --texttoparse "${in_invoice}" --useregex  --pattern "^([^.]+)" --regexOptions "Singleline" attachmentType=value
+replaceText --texttoparse "${attachmentType}" --textpattern "." attachmentType=value
+replaceText --texttoparse "${in_sender}" --textpattern "\"" in_sender=value
+setVar --name "${payload}" --value "{\r\n\"dmn-context\": {\r\n  \"SenderEmail\": \"${in_sender}\",\r\n  \"Subject\": \"${in_subject}\",\r\n  \"AttachmentType\": \"${attachmentType}\"\r\n }\r\n}"
+logMessage --message "Payload: ${payload}" --type "Info"
+httpRequest --verb "Post" --url "${decisionServiceEndPoint}" --username bamAdmin --password "ibmpam1!" --formatter "Json" --source "${payload}" out_success=success response=value out_code=statusCode out_desc=reasonPhrase
+if --left "${out_success}" --operator "Is_True" --negate
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to call ${decisionServiceEndPoint}: ${out_desc}"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+
+//logMessage --message "${response}" --type "Info"
+
+jsonToTable --json "${response}" --jsonPath "$" extractionSuccess=success extractedTable=value tableRows=rows tableColumns=columns
+//logMessage --message "Success: ${extractionSuccess}\r\nRows: ${tableRows}\r\nColumns: ${tableColumns}\r\nTable: ${extractedTable}" --type "Info"
+
+getTableCell --dataTable ${extractedTable} --column 3 --row 1 jsonData=value
+jsonToTable --json "${jsonData}" --jsonPath "$" extractionSuccess=success extractedTable=value tableRows=rows tableColumns=columns
+getTableCell --dataTable ${extractedTable} --column 1 --row 1 jsonData=value
+jsonToTable --json "${jsonData}" --jsonPath "$" extractionSuccess=success extractedTable=value tableRows=rows tableColumns=columns
+
+getTableCell --dataTable ${extractedTable} --column 5 --row 1 jsonData=value
+//logMessage --message "${jsonData}" --type "Info"
+
+jsonToTable --json "${jsonData}" --jsonPath "$" extractionSuccess=success extractedTable=value tableRows=rows tableColumns=columns
+
+getTableCell --dataTable ${extractedTable} --column 2 --row 1 jsonData=value
+
+jsonToTable --json "${jsonData}" --jsonPath "$" extractionSuccess=success extractedTable=value tableRows=rows tableColumns=columns
+getTableCell --dataTable ${extractedTable} --column ${supplierIdCol} --row 1 out_supplierId=value
+getTableCell --dataTable ${extractedTable} --column ${companyNameCol} --row 1 out_company=value
+getTableCell --dataTable ${extractedTable} --column ${companyCodeCol} --row 1 out_companyCode=value
+logMessage --message "Company: ${out_company}" --type "Info"
+logMessage --message "CompanyCode: ${out_companyCode}" --type "Info"
+logMessage --message "SupplierId: ${out_supplierId}" --type "Info"
+if --left "${out_company}" --operator "Equal_To" --right NOT_FOUND
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Company not found"
+	logMessage --message " ${out_desc}" --type "Error"
+endIf
+logMessage --message "Success: ${out_success}" --type "Info"
+logMessage --message "Code: ${out_code}" --type "Info"
+logMessage --message "Description: ${out_desc}" --type "Info"*21.0.6.0

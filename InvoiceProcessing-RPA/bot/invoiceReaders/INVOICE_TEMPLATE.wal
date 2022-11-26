@@ -1,0 +1,130 @@
+Þ5// Description
+//	Process invoice
+// Input Variables
+//	in_invoice			- The invoice to process (pdf file)
+//
+// Output Variables
+// 	out_invoiceNumber		- The extracted invoice number
+// 	out_invoiceDate			- The invoice date
+// 	out_amountNumber		- The invoice total amount
+// 	out_vatNumber			- The invoice VAT amount
+// 	out_vatNumber			- The invoice VAT amount
+// 	out_success			- Boolean value indicating success or failure
+// 	out_code				- 00 if success, any other number represents an error code
+// 	out_desc				- Description of error code. For example "Failed to parse VAT
+//
+// Author:	Nigel T. Crowther
+// Date: 		26-Oct-2022
+// Copyright IBM Corporation 2022. All rights reserved
+//
+defVar --name in_invoice --type String --value "D:/A_Consultancy/Presales/2022/Midcounties/Git/MidcountiesExpenseBot/invoiceSamples/WaterPlus/230018_STW-INV04510345.pdf" --parameter  --required 
+defVar --name out_invoiceNumber --type String --output 
+defVar --name out_invoiceDate --type String --output 
+defVar --name out_amountNumber --type Numeric --value 0 --output 
+defVar --name out_vatNumber --type Numeric --value 0 --output 
+defVar --name out_success --type Boolean --value True --output 
+defVar --name out_code --type String --value 0 --output 
+defVar --name out_desc --type String --value SUCCESS --output 
+defVar --name amountText --type String
+defVar --name pdf --type Pdf
+defVar --name fieldName --type String
+defVar --name invoiceDateTime --type DateTime
+defVar --name extractedImage --type Image
+defVar --name pdf1 --type Pdf
+onError --executenext 
+
+goSub --label processInvoice
+
+beginSub --name processInvoice
+pdfOpen --file "${in_invoice}" out_success=success pdf=value
+if --left "${out_success}" --operator "Is_True" --negate 
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to read PDF ${in_invoice}"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+
+// Extract Total Amount
+// ---- ADD OCR COMMAND HERE ---
+extractPdfText --page 1 --language "en-US" --searchregion "585,137,254,239" --anchor Account --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "-4,10,104,29" --targetprovider "Google" --file ${pdf1} out_success=success amountText=text
+
+if --left "${out_success}" --operator "Is_True" --negate 
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to read total amount"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+
+setVar --name "${fieldName}" --value amount
+onError --label ParsingErrorHandler
+executeScript --name "D:\\A_Consultancy\\Presales\\2022\\Midcounties\\Git\\MidcountiesExpenseBot\\bot\\convertToDecimal.wal" --parameters "in_out_amountText=${amountText},in_fieldName=${fieldName}" --output "in_out_amountText=${amountText}" out_success=value
+convertStringToNumber --culture "en-US" --text "${amountText}" --allowdecimalpoint  --allowthousands  out_amountNumber=value
+if --left "${out_success}" --operator "Is_True" --negate 
+	// Return from parsing exception
+	return
+endIf
+
+// Extract Vat
+// ---- ADD OCR COMMAND HERE ---
+extractPdfText --page 1 --language "en-US" --searchregion "5,11,898,889" --anchor 243 --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "380,-16,82,32" --targetprovider "Abbyy" --file ${pdf} out_success=success extractedImage=image amountText=text
+if --left "${out_success}" --operator "Is_True" --negate 
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to read vat amount"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+setVar --name "${fieldName}" --value vat
+executeScript --name "D:\\A_Consultancy\\Presales\\2022\\Midcounties\\Git\\MidcountiesExpenseBot\\bot\\convertToDecimal.wal" --parameters "in_out_amountText=${amountText},in_fieldName=${fieldName}" --output "in_out_amountText=${amountText}" out_success=value
+convertStringToNumber --culture "en-US" --text "${amountText}" --allowdecimalpoint  --allowthousands  out_vatNumber=value
+onError --label ParsingErrorHandler
+if --left "${out_success}" --operator "Is_True" --negate 
+	// Return from parsing exception
+	return
+endIf
+setVar --name "${out_vatNumber}" --value "${out_vatNumber}.00"
+
+// Extract invoice number
+// ---- ADD OCR COMMAND HERE ---
+if --left "${out_success}" --operator "Is_True" --negate 
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to read invoice number"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+trimString --text "${out_invoiceNumber}" --trimoption "TrimStartAndEnd" out_invoiceNumber=value
+replaceText --texttoparse "${out_invoiceNumber}" --textpattern " " --comment "remove spaces" out_invoiceNumber=value
+replaceText --texttoparse "${out_invoiceNumber}" --useregex  --pattern "\\n" --regexOptions "0" out_invoiceNumber=value
+replaceText --texttoparse "${out_invoiceNumber}" --useregex  --pattern INV --regexOptions "0" out_invoiceNumber=value
+executeScript --name "D:\\A_Consultancy\\Presales\\2022\\Midcounties\\Git\\MidcountiesExpenseBot\\bot\\convertToDecimal.wal" --parameters "in_out_amountText=${out_invoiceNumber}" --output "in_out_amountText=${out_invoiceNumber}" out_success=value
+setVar --name "${out_invoiceNumber}" --value "STW-INV${out_invoiceNumber}"
+
+// Extract invoice date
+// ---- ADD OCR COMMAND HERE ---
+if --left "${out_success}" --operator "Is_True" --negate 
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to read invoice date"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+logMessage --message " Extracted Invoice Date: ${out_invoiceDate}" --type "Error"
+replaceText --texttoparse "${out_invoiceDate}" --useregex  --pattern "\\n" --regexOptions "0" out_invoiceDate=value
+replaceText --texttoparse "${out_invoiceDate}" --textpattern "]" --replacement 1 out_invoiceDate=value
+textToDateTime --culture "en-US" --text "${out_invoiceDate}" invoiceDateTime=value
+dateTimeToText --culture "fr-FR" --date "${invoiceDateTime}" --standardformat "ShortDate" out_invoiceDate=value
+
+logMessage --message "Invoice Number: ${out_invoiceNumber} \r\nInvoice Date: ${out_invoiceDate}\r\nInvoice Amount: ${out_amountNumber}" --type "Info"
+endSub
+
+beginSub --name ParsingErrorHandler
+setVar --name "${out_success}" --value false
+setVar --name "${out_code}" --value 99
+setVar --name "${out_desc}" --value "Failed to parse ${fieldName} in ${in_invoice}"
+logMessage --message " ${out_desc}" --type "Error"
+recover
+endSub
+*21.0.5.0

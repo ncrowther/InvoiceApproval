@@ -1,0 +1,50 @@
+Ú// Description
+// Invoke PAM process to authorise invoice payment
+// Input Variables
+// in_VatCurrencyAmount 
+// in_CompanyCode
+// in_Currency
+// in_ImageFileName 
+// in_InvoiceDate 
+// in_InvoiceNumber 
+// in_NetCurrencyAmount 
+// in_PurchaseOrderReference 
+// in_SupplierIdentity 
+//
+// Output Variables
+// 	out_success			- Boolean value indicating success or failure
+//	out_code				- 00 if success, any other number represents an error code
+//    out_desc				- Description of error code. For example "Failed to determine invoice type"
+//
+// Author:	Nigel T. Crowther
+// Date: 	26-Nov-2022
+// Copyright IBM Corporation 2022. All rights reserved
+//
+defVar --name in_VatCurrencyAmount --type String --value 34 --parameter  --required
+defVar --name in_CompanyCode --type String --value AAA --parameter  --required
+defVar --name in_Currency --type String --value GBP --parameter  --required
+defVar --name in_ImageFileName --type String --value "dfc.pdf" --parameter  --required
+defVar --name in_InvoiceDate --type String --value "12/12/22" --parameter  --required
+defVar --name in_InvoiceNumber --type String --value 123456 --parameter  --required
+defVar --name in_NetCurrencyAmount --type String --value 3453 --parameter  --required
+defVar --name in_PurchaseOrderReference --type String --value ABC --parameter  --required
+defVar --name in_SupplierIdentity --type String --value EFG --parameter  --required
+defVar --name out_success --type Boolean --output
+defVar --name out_code --type Numeric --output
+defVar --name out_desc --type String --output
+defVar --name payload --type String
+defVar --name response --type String
+defVar --name pamServiceEndPoint --type String --value "http://localhost:8080/kie-server/services/rest/server/containers/InvoiceApproval_1.0.0-SNAPSHOT/processes/InvoiceApproval.InvoiceApproval/instances"
+//
+setVar --name "${payload}" --value "{\r\n    \"VATCurrencyAmount\": \"${in_VatCurrencyAmount}\",\r\n    \"Approved\": false,\r\n    \"CompanyCode\": \"${in_CompanyCode}\",\r\n    \"Currency\": \"${in_Currency}\",\r\n    \"ImageFileName\": \"${in_ImageFileName}\",\r\n    \"InvoiceDate\": \"${in_InvoiceDate}\",\r\n    \"InvoiceNumber\": \"${in_InvoiceNumber}\",\r\n    \"NetCurrencyAmount\": \"${in_NetCurrencyAmount}\",\r\n    \"PurchaseOrderReference\": \"987987\",\r\n    \"SupplierIdentity\": \"${in_SupplierIdentity}\"\r\n}"
+logMessage --message "Payload: ${payload}" --type "Info"
+httpRequest --verb "Post" --url "${pamServiceEndPoint}" --username bamAdmin --password "ibmpam1!" --formatter "Json" --source "${payload}" out_success=success response=value out_code=statusCode out_desc=reasonPhrase
+if --left "${out_success}" --operator "Is_True" --negate
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to call ${pamServiceEndPoint}: ${out_desc}"
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+
+logMessage --message "PID: ${response}" --type "Info"*21.0.6.0

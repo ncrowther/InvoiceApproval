@@ -1,0 +1,51 @@
+©// Description
+//	Send bot status email
+// Input Variables
+//	in_emailServerConnectionInstance			- The imap email connection
+// in_logfile - The log file containing the bot status
+// in_subject - The Subject of the email
+//
+// Output Variables
+// 	out_success			- Boolean value indicating success or failure
+// 	out_code				- 00 if success, any other number represents an error code
+// 	out_desc				- Description of error code. For example "Failed to send"
+//
+// Author:	Nigel T. Crowther
+// Date: 		26-Oct-2022
+// Copyright IBM Corporation 2022. All rights reserved
+//
+defVar --name in_emailServerConnectionInstance --type EmailConnection --parameter 
+defVar --name in_logfile --type String --value "D:\\A_Consultancy\\Presales\\2022\\Midcounties\\Git\\MidcountiesExpenseBot\\logs\\log_20221107170623.log" --parameter 
+defVar --name in_subject --type String --value Test --parameter 
+defVar --name in_emailUsername --type String --value "rpabot@midcounties.coop" --parameter 
+defVar --name in_recipient --type String --value "ncrowther@uk.ibm.com" --parameter 
+defVar --name in_processedInvoices --type Numeric --value 0 --parameter 
+defVar --name in_sucessfullyProcessed --type Numeric --value 0 --parameter 
+defVar --name in_failedProcessed --type Numeric --value 0 --parameter 
+defVar --name in_unidentifiedInvoices --type Numeric --value 0 --parameter 
+defVar --name out_success --type Boolean --value True --output 
+defVar --name out_code --type String --value 0 --output 
+defVar --name out_desc --type String --value SUCCESS --output 
+defVar --name emailBody --type String --value "test body"
+defVar --name attachments --type List --innertype String
+defVar --name recipients --type List --innertype String
+
+insert --index 1 --value "${in_recipient}" --collection "${recipients}"
+
+//	Default success
+setVar --name "${out_success}" --value true
+setVar --name "${out_code}" --value 00
+setVar --name "${out_desc}" --value "Email sent:  ${in_subject}"
+
+
+//imapConnect --connection rpabotoutlookcreds_microsoft_exchange_imap --mailhost "outlook.office365.com" --mailport 993 --usessl  --integrationuseconnectiontosend  --integrationsmtpcredentials  --integrationsmtphost "smtp.office365.com" --integrationsmtpport 587 --integrationsmtpusessl  --authenticationtype "IntegrationConnection" in_emailServerConnectionInstance=value
+
+// Create email
+setVar --name "${emailBody}" --value "Invoice robot finished processing\r\n\r\nTotal Processed:             ${in_processedInvoices}\r\nSuccessfully processed: ${in_sucessfullyProcessed}\r\nFailed:                            ${in_failedProcessed}\r\nUnidentified:                  ${in_unidentifiedInvoices}\r\n\r\nPlease see attached log for details\r\n\r\n"
+setVar --name "${attachments}" --value "[${in_logfile}]"
+
+emailSend --connection ${in_emailServerConnectionInstance} --to ${recipients} --from "${in_emailUsername}" --subject "${in_subject}" --bodytype "Text" --body "${emailBody}" --attachments ${attachments}
+
+// Disconnect from the server.
+//emailDisconnect --connection ${in_emailServerConnectionInstance}
+*21.0.6.0

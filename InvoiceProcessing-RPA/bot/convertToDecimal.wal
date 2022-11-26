@@ -1,0 +1,44 @@
+
+	êŸ23fE‰p&?6Ó‰í// Description
+//	OCR Library - Convert to Decimal
+// Input Variables
+//	in_fieldName			- The OCR field to cleanse into a decimal
+//	in_out_amountText		- The data to cleanse
+//
+// Output Variables
+// 	in_out_amountText		- The extracted invoice number
+//
+// Author:		Nigel T. Crowther
+// Date:		31-Oct-2022
+// Copyright IBM Corporation 2022. All rights reserved
+//
+defVar --name in_fieldName --type String --value VAT --parameter  --required 
+defVar --name in_out_amountText --type String --value "l9OI.I 2" --parameter  --required  --output 
+
+onError --executenext 
+
+goSub --label convertToDecimal
+
+beginSub --name convertToDecimal
+
+logMessage --message "Raw ${in_fieldName} : ${in_out_amountText}" --type "Info"
+trimString --text "${in_out_amountText}" --trimoption "TrimStartAndEnd" in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern " " in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern "Â£" in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern O --replacement 0 in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern I --replacement 1 in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern l --replacement 1 in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern "]" --replacement 1 in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern "[" --replacement 1 in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern T --replacement 1 in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern Z --replacement 2 in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern S --replacement 5 in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern b --replacement 6 in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern B --replacement 8 in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern g --replacement 9 in_out_amountText=value
+logMessage --message "Cleaned ${in_fieldName} : ${in_out_amountText}" --type "Info"
+
+endSub
+
+"	-6½õ<AŒ¥|
+ÙÅ*21.0.6.0
