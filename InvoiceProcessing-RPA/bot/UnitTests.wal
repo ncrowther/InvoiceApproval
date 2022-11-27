@@ -1,4 +1,4 @@
-ƒ5defVar --name projectBase --type String
+ÿ4defVar --name projectBase --type String
 defVar --name processedResultsFolder --type String
 defVar --name unpaidInvoicesFolder --type String
 defVar --name expectedResultsFolder --type String
@@ -45,8 +45,8 @@ getParameter --name invoiceBasePath --comment "Get the base path for the invoice
 setVar --name "${expectedResultsFolder}" --value "${projectBase}\\expectedResults"
 setVar --name "${processedResultsFolder}" --value "${projectBase}\\ifs"
 
-//executeScript --name "${projectBase}\\bot\\prepareTest.wal" success=value
-//executeScript --name "${projectBase}\\bot\\invoiceBot.wal" success=value
+executeScript --name "${projectBase}\\bot\\prepareTest.wal" success=value
+executeScript --name "${projectBase}\\bot\\invoiceBot.wal" success=value
 
 onError --label evaluateException
 
