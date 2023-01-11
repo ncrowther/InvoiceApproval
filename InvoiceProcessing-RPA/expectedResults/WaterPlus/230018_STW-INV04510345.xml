@@ -2,7 +2,7 @@
 <MCC_KOFAX_SUPPLIER_INVOICE>
   <Header>
     <DocumentType>INVOICE</DocumentType>
-    <ImageFileName>\\uks-stoifs-01\nfs\KOFAX_IMAGES\APPS10-UR\230018_STW-INV04510345.pdf</ImageFileName>
+    <ImageFileName>230018_STW-INV04510345.pdf</ImageFileName>
     <CompanyCode>AA</CompanyCode>
     <InvoiceNumber>stw-04510345</InvoiceNumber>
     <PurchaseOrderReference></PurchaseOrderReference>
