@@ -1,4 +1,4 @@
-¦+// Description
+Ç*// Description
 //	Process invoice
 // Input Variables
 //	in_invoice			- The invoice to process (excel file)
@@ -38,7 +38,7 @@ onError --executenext
 goSub --label processInvoice
 
 beginSub --name processInvoice
-excelOpen --file "D:\\A_Consultancy\\Presales\\2022\\Midcounties\\Git\\MidcountiesExpenseBot\\invoiceSamples\\misc\\Bunzl.xlsx" out_success=success out_desc=reason excelInstance=value
+excelOpen --file "${in_invoice}" out_success=success out_desc=reason excelInstance=value
 if --left "${out_success}" --operator "Is_True" --negate 
 	setVar --name "${out_success}" --value false
 	setVar --name "${out_code}" --value 99
@@ -112,4 +112,4 @@ setVar --name "${out_desc}" --value "Failed to parse ${fieldName} in ${in_invoic
 logMessage --message " ${out_desc}" --type "Error"
 recover
 endSub
-*21.0.6.0
+*23.0.0.0

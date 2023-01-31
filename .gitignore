@@ -1,4 +1,6 @@
 
 *.log
-InvoiceProcessing-RPA/paidInvoices/20221126172601_B&Q_1290821194.pdf
-InvoiceProcessing-RPA/ifs/269111_1290821194.xml
+*.wad
+InvoiceProcessing-RPA/failedInvoices/
+InvoiceProcessing-RPA/paidInvoices/
+InvoiceProcessing-RPA/ifs/
