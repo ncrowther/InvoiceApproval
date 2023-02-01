@@ -1,4 +1,4 @@
-›é// Description
+èë// Description
 //	Process invoices from outlook
 //
 // Author:	Nigel T. Crowther
@@ -358,7 +358,9 @@ ifFile --file "${botScript}" --fileSystem ${fs} fileExists=value
 if --left "${fileExists}" --operator "Is_True" --negate 
 	setVar --name "${success}" --value false
 	incrementVar --number ${unidentifiedInvoiceCount}
-	setVar --name "${logEntry}" --value "No OCR script for ${company}.  Please create in : ${botScript}"
+	setVar --name "${logEntry}" --value "No script for ${company}.  Created from template. Please edit ${botScriptBaseDir}/invoiceReaders/${company}.wal"
+	fileCopy --from "${botScriptBaseDir}/OcrTemplates/INVOICE_TEMPLATE.wal" --to "${botScriptBaseDir}/invoiceReaders/"
+	fileRename --file "${botScriptBaseDir}/invoiceReaders/INVOICE_TEMPLATE.wal" --newname "${botScriptBaseDir}/invoiceReaders/${company}.wal"
 	goSub --label logEntry
 	return
 endIf
