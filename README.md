@@ -60,15 +60,34 @@ Run ```DetermineInvoiceTypeDM.wal``` to check  the rule service is working
 
 Open Business Central
 
-Create a project called ```InvoiceApproval```
+Go to Design
 
-Import the artefacts from folder ```invoiceApproval-PAM``` into Business Central. Build and deploy the process
+In MySpace, add a project called ```InvoiceApproval```
 
-The process should be exposed at the following endpoint:
+Import asset InvoiceApproval.bpmn from folder ```invoiceApproval-PAM``` into Business Central.
+Import asset ```ApproveInvoice-taskform.frm``` from folder ```invoiceApproval-PAM``` into Business Central. Ensure its name is ```ApproveInvoice-taskform```
+
+ Build and deploy the process
+
+## Test the process
+
+Go to Manage tab and select process definitions. 
+Under InvoiceApproval Actions, click start
+Enter dummy data and submit
+Under Track tab select task inbox
+Select the invoice approval task
+Click Claim, then click Start button and then click Approved, then click Complete button
+
+
+If using default ports, the process should be exposed at the following endpoint:
 
 ```
 http://localhost:8080/kie-server/services/rest/server/containers/InvoiceApproval_1.0.0-SNAPSHOT/processes/InvoiceApproval.InvoiceApproval/instances"
 ```
+
+
+
+## Set PAM endpoint in RPA
 
 if you are using a different endpoint, you will need to change line 37 of ```invokePamApprovalProcess.wal```
 

@@ -1,5 +1,4 @@
-
-	êŸ23fE‰p&?6Ó‰í// Description
+Å// Description
 //	OCR Library - Convert to Decimal
 // Input Variables
 //	in_fieldName			- The OCR field to cleanse into a decimal
@@ -25,6 +24,7 @@ logMessage --message "Raw ${in_fieldName} : ${in_out_amountText}" --type "Info"
 trimString --text "${in_out_amountText}" --trimoption "TrimStartAndEnd" in_out_amountText=value
 replaceText --texttoparse "${in_out_amountText}" --textpattern " " in_out_amountText=value
 replaceText --texttoparse "${in_out_amountText}" --textpattern "Â£" in_out_amountText=value
+replaceText --texttoparse "${in_out_amountText}" --textpattern "," in_out_amountText=value
 replaceText --texttoparse "${in_out_amountText}" --textpattern O --replacement 0 in_out_amountText=value
 replaceText --texttoparse "${in_out_amountText}" --textpattern I --replacement 1 in_out_amountText=value
 replaceText --texttoparse "${in_out_amountText}" --textpattern l --replacement 1 in_out_amountText=value
@@ -38,7 +38,4 @@ replaceText --texttoparse "${in_out_amountText}" --textpattern B --replacement 8
 replaceText --texttoparse "${in_out_amountText}" --textpattern g --replacement 9 in_out_amountText=value
 logMessage --message "Cleaned ${in_fieldName} : ${in_out_amountText}" --type "Info"
 
-endSub
-
-"	-6½õ<AŒ¥|
-ÙÅ*21.0.6.0
+endSub*23.0.0.0
