@@ -1,4 +1,4 @@
-ב// Description
+֖// Description
 //	Process invoices from outlook
 //
 // Author:	Nigel T. Crowther
@@ -100,10 +100,10 @@ goSub --label processOutlookInvoiceFolders
 beginSub --name processOutlookInvoiceFolders
 	
 // Connect to IMAP Email server	
+	imapConnect --connection iannesbit_gmail --mailhost "imap.gmail.com" --mailport 993 --usessl  --integrationuseconnectiontosend  --integrationsmtpcredentials  --integrationsmtphost "smtp.gmail.com" --integrationsmtpport 587 --integrationsmtpusessl  --authenticationtype "IntegrationConnection" --enableLog  emailConnection=value
 	
-	imapConnect --connection ntcoutlook365_microsoft_exchange_imap --mailhost "outlook.office365.com" --mailport 993 --usessl  --integrationuseconnectiontosend  --integrationsmtpcredentials  --integrationsmtphost "smtp.office365.com" --integrationsmtpport 587 --integrationsmtpusessl  --authenticationtype "IntegrationConnection" --enableLog  emailConnection=value
+//imapConnect --connection ntcoutlook365_microsoft_exchange_imap --mailhost "outlook.office365.com" --mailport 993 --usessl  --integrationuseconnectiontosend  --integrationsmtpcredentials  --integrationsmtphost "smtp.office365.com" --integrationsmtpport 587 --integrationsmtpusessl  --authenticationtype "IntegrationConnection" --enableLog  emailConnection=value
 	
-//imapConnect --connection rpabotoutlookcreds_microsoft_exchange_imap --mailhost "outlook.office365.com" --mailport 993 --usessl  --authenticationtype "IntegrationConnection" --enableLog  emailConnection=value
 	goSub --label processEmails
 	
 	setVar --name "${logEntry}" --value "Bot finished"
@@ -190,11 +190,15 @@ beginSub --name startApprovalProcess
 // Start a PAM approval process
 	goSub --label getInvoiceName
 	
-	setVar --name "${botScript}" --value "${botScriptBaseDir}/invokePAMApprovalProcess.wal"
 	
-	executeScript --name "${botScript}" --parameters "in_VatCurrencyAmount=${vatNumber},in_CompanyCode=${companyCode},in_Currency=${currency},in_ImageFileName=${invoiceName},in_InvoiceDate=${invoiceDate},in_InvoiceNumber=${invoiceNumber},in_NetCurrencyAmount=${amountNumber},in_PurchaseOrderReference=\"343433\",in_SupplierIdentity=${supplierId}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}"
+// PAM
+//setVar --name "${botScript}" --value "${botScriptBaseDir}/invokePAMApprovalProcess.wal"
+//executeScript --name "${botScript}" --parameters "in_VatCurrencyAmount=${vatNumber},in_CompanyCode=${companyCode},in_Currency=${currency},in_ImageFileName=${invoiceName},in_InvoiceDate=${invoiceDate},in_InvoiceNumber=${invoiceNumber},in_NetCurrencyAmount=${amountNumber},in_PurchaseOrderReference=\"343433\",in_SupplierIdentity=${supplierId}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}"
 	
-	setVar --name "${logEntry}" --value "Started PAM process:  ${ifsFileName}"
+// Attended Bot
+	setVar --name "${botScript}" --value "${botScriptBaseDir}/invokeManualApprovalProcess.wal"
+	executeScript --name "${botScript}" --parameters "in_Invoice=${invoice},in_VatCurrencyAmount=${vatNumber},in_CompanyCode=${companyCode},in_Currency=${currency},in_ImageFileName=${invoiceName},in_InvoiceDate=${invoiceDate},in_InvoiceNumber=${invoiceNumber},in_NetCurrencyAmount=${amountNumber},in_PurchaseOrderReference=\"343433\",in_SupplierIdentity=${supplierId}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}" success=value
+	
 	goSub --label logEntry
 endSub
 
@@ -202,7 +206,7 @@ beginSub --name writeInvoiceToGDrive
 	
 	goSub --label getInvoiceName
 	setVar --name "${invoiceName}" --value "${invoiceNameWithExt}"
-	googleDriveConnect --name WeatherRequests googleDrive=value
+	googleDriveConnect --name nesbitgdrive_google_drive googleDrive=value
 	
 //logMessage --message "Deleting invoice from Google  folder (if it exsits)" --type "Info"
 //fileDelete --file "/Invoices/${invoiceName}" --fileSystem ${googleDrive}	
