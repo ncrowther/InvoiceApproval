@@ -1,4 +1,4 @@
-∞`// Description
+ù`// Description
 //	Process invoice
 // Input Variables
 //	in_invoice			- The invoice to process (pdf file)
@@ -18,7 +18,7 @@
 // Copyright IBM Corporation 2022. All rights reserved
 //
 defVar --name in_invoice --type String --value "D:\\RPA\\github\\invoiceProcessingPAM_DM_RPA\\InvoiceApproval\\InvoiceProcessing-RPA\\testInvoices\\Momentum\\SO300323_143759_8040362 POSTED.pdf" --parameter  --required
-defVar --name invoiceExcelFileName --type String --value "D:\\RPA\\github\\invoiceProcessingPAM_DM_RPA\\InvoiceApproval\\InvoiceProcessing-RPA\\testInvoices\\Momentum\\invoice.xlsx"
+defVar --name in_invoiceExcelFileName --type String --parameter  --required
 defVar --name out_invoiceNumber --type String --output
 defVar --name out_invoiceDate --type String --output
 defVar --name out_amountNumber --type Numeric --value 0 --output
@@ -57,6 +57,7 @@ defVar --name description --type String
 defVar --name descriptionCellCoord --type Rectangle
 defVar --name expectedPrice --type Numeric
 defVar --name anchorImage --type Image
+
 
 onError --label ParsingErrorHandler
 
@@ -130,9 +131,10 @@ beginSub --name getLineItems
 	// Product code
 		setVar --name "${productCellCoord}" --value "-7,${yCoord},105,20"
 		extractPdfText --page 1 --language "en-US" --searchregion "37,435,116,545" --anchor PRODUCT --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "${productCellCoord}" --targetprovider "Google" --file ${pdf} out_success=success extractedImage=image productCode=text
+		replaceText --texttoparse "${productCode}" --textpattern " " productCode=value
 		
 	// Description
-		setVar --name "${descriptionCellCoord}" --value "107,${yCoord},322,23"
+		setVar --name "${descriptionCellCoord}" --value "110,${yCoord},322,23"
 		extractPdfText --page 1 --language "en-US" --searchregion "40,435,824,669" --anchor PRODUCT --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "${descriptionCellCoord}" --targetprovider "Google" --file ${pdf} out_success=success extractedImage=image description=text
 		
 	// Qty
@@ -161,7 +163,7 @@ endSub
 
 beginSub --name openExcel
 	
-	excelOpen --file "${invoiceExcelFileName}" --savechanges  out_success=success reason=reason excelFileInstance=value
+	excelOpen --file "${in_invoiceExcelFileName}" --savechanges  out_success=success reason=reason excelFileInstance=value
 	if --left "${out_success}" --operator "Is_True" --negate
 		logMessage --message "Error opening Excel: ${out_success}" --type "Error"
 		stopExecution
@@ -185,7 +187,7 @@ beginSub --name writeInvoiceData
 	
 	excelSet --value "${out_amountNumber}" --file ${excelFileInstance} --getfirstsheet  --row ${tableRowIndex} --column ${tableColumnIndex} --comment "Set line item product code"
 	
-	evaluate --expression "${tableRowIndex}+1" tableRowIndex=value
+	evaluate --expression "${tableRowIndex}+2" tableRowIndex=value
 	
 endSub
 

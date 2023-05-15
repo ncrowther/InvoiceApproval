@@ -1,4 +1,4 @@
-÷ñ// Description
+∞ù// Description
 //	Process invoices from outlook
 //
 // Author:	Nigel T. Crowther
@@ -73,6 +73,8 @@ defVar --name failedInvoices --type Numeric --value 0
 defVar --name scriptSuccess --type Boolean
 defVar --name adminUser --type String
 defVar --name invoiceNameWithExt --type String
+defVar --name invoiceSpreadsheet --type String --value "D:\\RPA\\github\\invoiceProcessingPAM_DM_RPA\\InvoiceApproval\\InvoiceProcessing-RPA\\testInvoices\\Momentum\\invoice.xlsx"
+defVar --name invoiceExcelFileName --type String
 
 logMessage --message "${robotName} starting..." --type "Info" --logonwindows  --logname Application --source Application --eventid 0
 
@@ -158,7 +160,7 @@ beginSub --name processAttachment
 				incrementVar --number ${failedInvoiceCount}
 				goSub --label moveInvoiceToFailedFolder
 				setVar --name "${logEntry}" --value "OCR Failed for ${company}:  ${result_desc}  File: ${invoice}"
-				goSub --label logEntry
+				goSub --label logError
 			else
 				incrementVar --number ${successfulInvoiceCount}
 				goSub --label generateIfsXmlFile
@@ -197,8 +199,9 @@ beginSub --name startApprovalProcess
 	
 // Attended Bot
 	setVar --name "${botScript}" --value "${botScriptBaseDir}/invokeManualApprovalProcess.wal"
-	executeScript --name "${botScript}" --parameters "in_Invoice=${invoice},in_VatCurrencyAmount=${vatNumber},in_CompanyCode=${companyCode},in_Currency=${currency},in_ImageFileName=${invoiceName},in_InvoiceDate=${invoiceDate},in_InvoiceNumber=${invoiceNumber},in_NetCurrencyAmount=${amountNumber},in_PurchaseOrderReference=\"343433\",in_SupplierIdentity=${supplierId}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}" success=value
+	executeScript --name "${botScript}" --parameters "in_Invoice=${invoice},in_VatCurrencyAmount=${vatNumber},in_CompanyCode=${companyCode},in_Currency=${currency},in_ImageFileName=${invoiceName},in_InvoiceDate=${invoiceDate},in_InvoiceNumber=${invoiceNumber},in_NetCurrencyAmount=${amountNumber},in_PurchaseOrderReference=\"343433\",in_SupplierIdentity=${supplierId},in_spreadsheet=${invoiceSpreadsheet}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}" success=value
 	
+	setVar --name "${logEntry}" --value "Completed Approval Process:  ${result_desc}"
 	goSub --label logEntry
 endSub
 
@@ -367,6 +370,11 @@ beginSub --name executeOCRScript
 		goSub --label logEntry
 		return
 	endIf
-	executeScript --name "${botScript}" --parameters "in_invoice=${invoice}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc},out_invoiceNumber=${invoiceNumber},out_invoiceDate=${invoiceDate},out_amountNumber=${amountNumber},out_vatNumber=${vatNumber}"
+// Create the excel invoice name using the bot script name (its the same name different extension)
+	setVar --name "${invoiceExcelFileName}" --value "${botScript}"
+	replaceText --texttoparse "${invoiceExcelFileName}" --textpattern ".wal" --replacement ".xlsx" invoiceExcelFileName=value
+	replaceText --texttoparse "${invoiceExcelFileName}" --textpattern "/" --replacement "\\" invoiceExcelFileName=value
+// Run the OCR script, creating the excel invoice
+	executeScript --name "${botScript}" --parameters "in_invoice=${invoice},in_invoiceExcelFileName=${invoiceExcelFileName}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc},out_invoiceNumber=${invoiceNumber},out_invoiceDate=${invoiceDate},out_amountNumber=${amountNumber},out_vatNumber=${vatNumber}"
 	
 endSub*23.0.0.0
