@@ -1,4 +1,4 @@
-ùU// Description
+ÀH// Description
 //	Process invoice
 // Input Variables
 //	in_invoice			- The invoice to process (pdf file)
@@ -58,6 +58,10 @@ defVar --name descriptionCellCoord --type Rectangle
 defVar --name expectedPrice --type Numeric
 defVar --name anchorImage --type Image
 defVar --name pdf1 --type Pdf
+defVar --name pdf2 --type Pdf
+defVar --name pdf3 --type Pdf
+defVar --name pdf4 --type Pdf
+defVar --name pdf5 --type Pdf
 
 
 onError --label ParsingErrorHandler
@@ -78,30 +82,10 @@ goSub --label openExcel
 
 
 // Extract invoice number (PO)
-extractPdfText --page 1 --language "en-US" --searchregion "57,147,103,19" --anchor PO --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "126,-4,73,17" --targetprovider "Google" --file ${pdf} anchorImage=anchor out_success=success extractedImage=image out_invoiceNumber=text
-if --left "${out_success}" --operator "Is_True" --negate 
-	setVar --name "${out_invoiceNumber}" --value XXXXXXXXX
-else
-	
-	trimString --text "${out_invoiceNumber}" --trimoption "TrimStartAndEnd" out_invoiceNumber=value
-	replaceText --texttoparse "${out_invoiceNumber}" --textpattern " " --comment "remove spaces" out_invoiceNumber=value
-	replaceText --texttoparse "${out_invoiceNumber}" --useregex  --pattern "\\n" --regexOptions "0" out_invoiceNumber=value
-	replaceText --texttoparse "${out_invoiceNumber}" --useregex  --pattern INV --regexOptions "0" out_invoiceNumber=value
-	executeScript --name convertToDecimal --parameters "in_out_amountText=${out_invoiceNumber},in_fieldName=invoiceNumber" --output "in_out_amountText=${out_invoiceNumber}" out_success=value
-endIf
+pdfRegionText --language "en-US" --region "188,148,68,18" --page 1 --dpix 110 --dpiy 110 --file ${pdf} out_invoiceNumber=value
 
 // Extract invoice date
-extractPdfText --page 1 --language "en-US" --searchregion "416,127,51,18" --anchor DATE --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "83,-4,76,19" --targetprovider "Google" --file ${pdf} anchorImage=anchor out_success=success extractedImage=image out_invoiceDate=text
-if --left "${out_success}" --operator "Is_True" --negate 
-	setVar --name "${out_invoiceDate}" --value XXXXXXXX
-	
-else
-	replaceText --texttoparse "${out_invoiceDate}" --useregex  --pattern "\\n" --regexOptions "0" out_invoiceDate=value
-	replaceText --texttoparse "${out_invoiceDate}" --textpattern " " out_invoiceDate=value
-	textToDateTime --culture "en-US" --text "${out_invoiceDate}" --usecustomformat  --customformat "${customFormat}" invoiceDateTime=value
-	dateTimeToText --culture "pt-BR" --date "${invoiceDateTime}" --usecustomformat  --customformat "${customFormat}" out_invoiceDate=value
-	trimString --text "${out_invoiceDate}" --trimoption "TrimEnd" out_invoiceDate=value
-endIf
+pdfRegionText --language "en-US" --region "190,126,73,21" --page 1 --dpix 110 --dpiy 110 --file ${pdf} out_invoiceDate=value
 
 goSub --label writeInvoiceData
 

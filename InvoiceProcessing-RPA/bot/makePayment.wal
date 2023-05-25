@@ -1,0 +1,122 @@
+Ÿ8// Description
+// Invoke Manual payment
+// Input Variables
+// in_VatCurrencyAmount 
+// in_CompanyCode
+// in_Currency
+// in_ImageFileName 
+// in_InvoiceDate 
+// in_InvoiceNumber 
+// in_NetCurrencyAmount 
+// in_PurchaseOrderReference 
+// in_SupplierIdentity 
+//
+// Output Variables
+// 	out_success			- Boolean value indicating success or failure
+//	out_code				- 00 if success, any other number represents an error code
+//    out_desc				- Description of error code. For example "Failed to determine invoice type"
+//
+// Author:	Nigel T. Crowther
+// Date: 	26-Nov-2022
+// Copyright IBM Corporation 2022. All rights reserved
+//
+defVar --name in_InvoiceNumber --type String --value 123456 --parameter  --required
+defVar --name in_NetCurrencyAmount --type String --value "0.01" --parameter  --required
+defVar --name out_success --type Boolean --output
+defVar --name out_code --type Numeric --output
+defVar --name out_desc --type String --output
+defVar --name bankingCode --type String
+defVar --name payload --type String
+defVar --name response --type String
+defVar --name browserInstance --type String --value web01
+defVar --name success --type Boolean
+
+webStart --name "${browserInstance}" --type "Edge"
+
+webNavigate --url "https://onlinebanking.nationwide.co.uk/AccessManagement/IdentifyCustomer/IdentifyCustomer?_its=JTdCJTIydmlkJTIyJTNBJTIyOGZmMjEwZmEtYjAxMy00NTQyLTlhNmMtM2M3YWViNmFhNGVkJTIyJTJDJTIyc3RhdGUlMjIlM0ElMjJybHR%2BMTY4NDIyMjE5NH5sYW5kfjJfMjY0NDk1X2RpcmVjdF9mYTZkMGI2ZGQ3NTlkNjQyOTFmMTdhM2RkOGEyNjZkYiUyMiUyQyUyMnNpdGVJZCUyMiUzQTM5NDk4JTdE"
+// Login
+webSet --value 4667506706 --selector "XPath" --xpath "/html/body/div[7]/section/div/div[3]/div[2]/div[2]/div/div[1]/input" success=value
+webSendKeys --value "{TAB}" --selector "XPath" --xpath "/html/body/div[7]/section/div/div[3]/div[2]/div[2]/div/div[1]/input" success=value
+webClick --selector "XPath" --xpath "/html/body/div[7]/section/div/div[3]/div[4]/div/form/fieldset/div[1]/div[1]/div[1]/input" success=value
+webSet --value 28 --selector "XPath" --xpath "/html/body/div[7]/section/div/div[3]/div[4]/div/form/fieldset/div[1]/div[1]/div[1]/input" success=value
+webSetComboBox --selectoptionby "Value" --value April --selector "XPath" --xpath "/html/body/div[7]/section/div/div[3]/div[4]/div/form/fieldset/div[1]/div[2]/div[1]/div/select" success=value
+webSet --value 1964 --selector "XPath" --xpath "/html/body/div[7]/section/div/div[3]/div[4]/div/form/fieldset/div[1]/div[3]/div[1]/input" success=value
+
+webClick --selector "XPath" --xpath "/html/body/div[7]/section/div/div[3]/div[6]/div/button" success=value
+
+webClick --selector "XPath" --xpath "/html/body/div[6]/section/div/div[5]/div[2]/fieldset/div[1]/div/div[2]/label/span" success=value
+
+webWaitElement --selector "XPath" --xpath "/html/body/div[6]/section/div/div[7]/div/form/div[1]/div[1]/div[3]/div[1]/input"
+
+webSet --value 4303 --selector "XPath" --xpath "/html/body/div[6]/section/div/div[7]/div/form/div[1]/div[1]/div[3]/div[1]/input" success=value
+
+inputBox --title "Use fob to create banking  code" --prompt Code bankingCode=value
+
+// Enter banking code
+webSet --value "${bankingCode}" --selector "XPath" --xpath "/html/body/div[6]/section/div/div[7]/div/form/div[1]/div[1]/div[5]/div[1]/input" success=value
+
+// Login
+webClick --selector "XPath" --xpath "/html/body/div[6]/section/div/div[7]/div/form/div[2]/button" success=value
+
+// Single Payment
+webWaitElement --selector "XPath" --xpath "/html/body/div[3]/div[3]/div/main/div/div/table[1]/tbody/tr[2]/td/form/table/tbody/tr[1]/td[3]/div/div/a/i"
+webClick --selector "XPath" --xpath "/html/body/div[3]/div[3]/div/main/div/div/table[1]/tbody/tr[2]/td/form/table/tbody/tr[1]/td[3]/div/div/a/i" success=value
+
+// Manage Payees
+webWaitElement --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[1]/div[2]/ul/li[3]/a"
+webClick --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[1]/div[2]/ul/li[3]/a" success=value
+
+// Drop down Change payee details
+webWaitElement --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/div[6]/div[2]/table/tbody/tr[16]/td[4]/div/form/select"
+webSetComboBox --selectoptionby "Value" --value "Change payee details" --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/div[6]/div[2]/table/tbody/tr[16]/td[4]/div/form/select" success=value
+
+// Go
+webWaitElement --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/div[6]/div[2]/table/tbody/tr[16]/td[4]/div/form/a/i"
+webClick --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/div[6]/div[2]/table/tbody/tr[16]/td[4]/div/form/a/i" success=value
+
+//Set Ref
+webWaitElement --selector "Id" --id Reference success=value
+webSet --value "REF${in_InvoiceNumber}" --selector "Id" --id Reference success=value
+
+// cont
+webWaitElement --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[2]/div/a[2]/i"
+webClick --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[2]/div/a[2]/i" success=value
+
+// confirm
+webWaitElement --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[2]/div/a[3]/i"
+webClick --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[2]/div/a[3]/i" success=value
+
+// Click continue
+webWaitElement --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/div[5]/form/div[2]/div/a/i"
+webClick --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/div[5]/form/div[2]/div/a/i" success=value
+
+// Click continue
+webWaitElement --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/div[5]/form/div[2]/div/a/i"
+webClick --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/div[5]/form/div[2]/div/a/i" success=value
+
+// Select payee /html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[1]/div[6]/div/div[1]/div/select
+webSetComboBox --selectoptionby "Value" --value 101 --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[1]/div[6]/div/div[1]/div/select" success=value
+//webClick --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[1]/div[6]/div/div[1]/div/select/option[6]" success=value
+
+// Next
+webClick --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[2]/div/a[3]/i" success=value
+
+webWaitElement --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[1]/div[5]/div/div[1]/div[2]/div/input"
+// Set Amt
+webSet --value "${in_NetCurrencyAmount}" --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[1]/div[5]/div/div[1]/div[2]/div/input" success=value
+
+// Next
+webClick --selector "XPath" --xpath "/html/body/div[3]/div[2]/div[1]/div[2]/div/form/div[2]/div/a[3]/i" success=value
+
+webClose --name "${browserInstance}" --leavebrowseropen
+
+if --left "${response}" --operator "Equal_To" --right No
+	
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	logMessage --message " ${out_desc}" --type "Error"
+	return
+endIf
+
+
+logMessage --message "Response: ${response}" --type "Info"*23.0.0.0

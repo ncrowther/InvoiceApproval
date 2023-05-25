@@ -1,4 +1,4 @@
-¤.// Description
+ø=// Description
 //	INVOICE TEMPLATE
 // Input Variables
 //	in_invoice			- The invoice to process (pdf file)
@@ -17,14 +17,15 @@
 // Date: 		26-Oct-2022
 // Copyright IBM Corporation 2022. All rights reserved
 //
-defVar --name in_invoice --type String --value "D:\\RPA\\github\\invoiceProcessingPAM_DM_RPA\\InvoiceApproval\\InvoiceProcessing-RPA\\failedInvoices\\20230203221811_OptimisePhysio_.pdf" --parameter  --required 
-defVar --name out_invoiceNumber --type String --output 
-defVar --name out_invoiceDate --type String --output 
-defVar --name out_amountNumber --type Numeric --value 0 --output 
-defVar --name out_vatNumber --type Numeric --value 0 --output 
-defVar --name out_success --type Boolean --value True --output 
-defVar --name out_code --type String --value 0 --output 
-defVar --name out_desc --type String --value SUCCESS --output 
+defVar --name in_invoice --type String --value "D:\\RPA\\github\\invoiceProcessingPAM_DM_RPA\\InvoiceApproval\\InvoiceProcessing-RPA\\failedInvoices\\20230203221811_OptimisePhysio_.pdf" --parameter  --required
+defVar --name in_invoiceExcelFileName --type String --value "D:\\RPA\\github\\invoiceProcessingPAM_DM_RPA\\InvoiceApproval\\InvoiceProcessing-RPA\\bot\\invoiceReaders\\OptimisePhysio.xlsx" --parameter  --required
+defVar --name out_invoiceNumber --type String --output
+defVar --name out_invoiceDate --type String --output
+defVar --name out_amountNumber --type Numeric --value 0 --output
+defVar --name out_vatNumber --type Numeric --value 0 --output
+defVar --name out_success --type Boolean --value True --output
+defVar --name out_code --type String --value 0 --output
+defVar --name out_desc --type String --value SUCCESS --output
 defVar --name amountText --type String
 defVar --name pdf --type Pdf
 defVar --name fieldName --type String
@@ -32,81 +33,124 @@ defVar --name invoiceDateTime --type DateTime
 defVar --name extractedImage --type Image
 defVar --name pdf1 --type Pdf
 defVar --name projectBase --type String
-onError --executenext 
+defVar --name excelFileInstance --type Excel
+defVar --name invoiceDataTable --type DataTable
+defVar --name rowCount --type Numeric
+defVar --name tableColumnIndex --type Numeric
+defVar --name tableRowIndex --type Numeric --value 3
+defVar --name reason --type String
+
+onError --executenext
+
+goSub --label openExcel
 
 getParameter --name invoiceBasePath --comment "Get the base path for the invoices" projectBase=value
 
 goSub --label processInvoice
 
+	goSub --label writeInvoiceData
+	
+	goSub --label closeExcel
+
 beginSub --name processInvoice
-pdfOpen --file "${in_invoice}" out_success=success pdf=value
-if --left "${out_success}" --operator "Is_True" --negate 
-	setVar --name "${out_success}" --value false
-	setVar --name "${out_code}" --value 99
-	setVar --name "${out_desc}" --value "Failed to read PDF ${in_invoice}"
-	logMessage --message " ${out_desc}" --type "Error"
-	return
-endIf
-
+	pdfOpen --file "${in_invoice}" out_success=success pdf=value
+	if --left "${out_success}" --operator "Is_True" --negate
+		setVar --name "${out_success}" --value false
+		setVar --name "${out_code}" --value 99
+		setVar --name "${out_desc}" --value "Failed to read PDF ${in_invoice}"
+		logMessage --message " ${out_desc}" --type "Error"
+		return
+	endIf
+	
 // Extract Total Amount
-extractPdfText --page 1 --language "en-US" --searchregion "2,4,895,884" --anchor Balance --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "160,-5,68,20" --targetprovider "Google" --file ${pdf} out_success=success extractedImage=image amountText=text
-
-if --left "${out_success}" --operator "Is_True" --negate 
-	setVar --name "${out_success}" --value false
-	setVar --name "${out_code}" --value 99
-	setVar --name "${out_desc}" --value "Failed to read total amount"
-	logMessage --message " ${out_desc}" --type "Error"
-	return
-endIf
-
-setVar --name "${fieldName}" --value amount
-onError --label ParsingErrorHandler
-executeScript --name "${projectBase}\\bot\\convertToDecimal.wal" --parameters "in_out_amountText=${amountText},in_fieldName=${fieldName}" --output "in_out_amountText=${amountText}" out_success=value
-if --left "${out_success}" --operator "Is_True" --negate 
+	extractPdfText --page 1 --language "en-US" --searchregion "2,4,895,884" --anchor Balance --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "160,-5,68,20" --targetprovider "Google" --file ${pdf} out_success=success extractedImage=image amountText=text
+	
+	if --left "${out_success}" --operator "Is_True" --negate
+		setVar --name "${out_success}" --value false
+		setVar --name "${out_code}" --value 99
+		setVar --name "${out_desc}" --value "Failed to read total amount"
+		logMessage --message " ${out_desc}" --type "Error"
+		return
+	endIf
+	
+	setVar --name "${fieldName}" --value amount
+	onError --label ParsingErrorHandler
+	executeScript --name "${projectBase}\\bot\\convertToDecimal.wal" --parameters "in_out_amountText=${amountText},in_fieldName=${fieldName}" --output "in_out_amountText=${amountText}" out_success=value
+	if --left "${out_success}" --operator "Is_True" --negate
 	// Return from parsing exception
-	return
-endIf
-
-convertStringToNumber --culture "en-US" --text "${amountText}" --allowdecimalpoint  --allowthousands  out_amountNumber=value
-if --left "${out_success}" --operator "Is_True" --negate 
+		return
+	endIf
+	
+	convertStringToNumber --culture "en-US" --text "${amountText}" --allowdecimalpoint  --allowthousands  out_amountNumber=value
+	if --left "${out_success}" --operator "Is_True" --negate
 	// Return from parsing exception
-	return
-endIf
-
+		return
+	endIf
+	
 // Extract invoice number
-extractPdfText --page 1 --language "en-US" --searchregion "2,4,895,884" --anchor "Invoice:" --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "312,-11,51,29" --targetprovider "Google" --file ${pdf} out_success=success out_invoiceNumber=text
-if --left "${out_success}" --operator "Is_True" --negate 
-	setVar --name "${out_success}" --value false
-	setVar --name "${out_code}" --value 99
-	setVar --name "${out_desc}" --value "Failed to read invoice number"
-	logMessage --message " ${out_desc}" --type "Error"
-	return
-endIf
-trimString --text "${out_invoiceNumber}" --trimoption "TrimStartAndEnd" out_invoiceNumber=value
-replaceText --texttoparse "${out_invoiceNumber}" --textpattern " " --comment "remove spaces" out_invoiceNumber=value
-replaceText --texttoparse "${out_invoiceNumber}" --useregex  --pattern "\\n" --regexOptions "0" out_invoiceNumber=value
-replaceText --texttoparse "${out_invoiceNumber}" --useregex  --pattern INV --regexOptions "0" out_invoiceNumber=value
-
+	extractPdfText --page 1 --language "en-US" --searchregion "2,4,895,884" --anchor "Invoice:" --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "312,-11,51,29" --targetprovider "Google" --file ${pdf} out_success=success out_invoiceNumber=text
+	if --left "${out_success}" --operator "Is_True" --negate
+		setVar --name "${out_success}" --value false
+		setVar --name "${out_code}" --value 99
+		setVar --name "${out_desc}" --value "Failed to read invoice number"
+		logMessage --message " ${out_desc}" --type "Error"
+		return
+	endIf
+	trimString --text "${out_invoiceNumber}" --trimoption "TrimStartAndEnd" out_invoiceNumber=value
+	replaceText --texttoparse "${out_invoiceNumber}" --textpattern " " --comment "remove spaces" out_invoiceNumber=value
+	replaceText --texttoparse "${out_invoiceNumber}" --useregex  --pattern "\\n" --regexOptions "0" out_invoiceNumber=value
+	replaceText --texttoparse "${out_invoiceNumber}" --useregex  --pattern INV --regexOptions "0" out_invoiceNumber=value
+	
 // Extract invoice date
-extractPdfText --page 1 --language "en-US" --searchregion "2,4,895,884" --anchor "Date:" --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "270,-4,90,21" --targetprovider "Google" --targethighcontrast  --file ${pdf} out_success=success extractedImage=image out_invoiceDate=text
-if --left "${out_success}" --operator "Is_True" --negate 
-	setVar --name "${out_success}" --value false
-	setVar --name "${out_code}" --value 99
-	setVar --name "${out_desc}" --value "Failed to read invoice date"
-	logMessage --message " ${out_desc}" --type "Error"
-	return
-endIf
-logMessage --message " Extracted Invoice Date: ${out_invoiceDate}" --type "Error"
-replaceText --texttoparse "${out_invoiceDate}" --useregex  --pattern "\\n" --regexOptions "0" out_invoiceDate=value
-replaceText --texttoparse "${out_invoiceDate}" --textpattern "]" --replacement 1 out_invoiceDate=value
-replaceText --texttoparse "${out_invoiceDate}" --textpattern l --replacement "/" out_invoiceDate=value
-logMessage --message "Invoice Number: ${out_invoiceNumber} \r\nInvoice Date: ${out_invoiceDate}\r\nInvoice Amount: ${out_amountNumber}" --type "Info"
+	extractPdfText --page 1 --language "en-US" --searchregion "2,4,895,884" --anchor "Date:" --anchorprovider "Google" --comparison "Equal_To" --segmentation "Word" --targetregion "270,-4,90,21" --targetprovider "Google" --targethighcontrast  --file ${pdf} out_success=success extractedImage=image out_invoiceDate=text
+	if --left "${out_success}" --operator "Is_True" --negate
+		setVar --name "${out_success}" --value false
+		setVar --name "${out_code}" --value 99
+		setVar --name "${out_desc}" --value "Failed to read invoice date"
+		logMessage --message " ${out_desc}" --type "Error"
+		return
+	endIf
+	logMessage --message " Extracted Invoice Date: ${out_invoiceDate}" --type "Error"
+	replaceText --texttoparse "${out_invoiceDate}" --useregex  --pattern "\\n" --regexOptions "0" out_invoiceDate=value
+	replaceText --texttoparse "${out_invoiceDate}" --textpattern "]" --replacement 1 out_invoiceDate=value
+	replaceText --texttoparse "${out_invoiceDate}" --textpattern l --replacement "/" out_invoiceDate=value
+	logMessage --message "Invoice Number: ${out_invoiceNumber} \r\nInvoice Date: ${out_invoiceDate}\r\nInvoice Amount: ${out_amountNumber}" --type "Info"
+endSub
+
+beginSub --name openExcel
+	
+	excelOpen --file "${in_invoiceExcelFileName}" --savechanges  out_success=success reason=reason excelFileInstance=value
+	if --left "${out_success}" --operator "Is_True" --negate
+		logMessage --message "Error opening Excel: ${out_success}" --type "Error"
+		stopExecution
+	endIf
+	excelGetTable --file ${excelFileInstance} --getfirstsheet  --entiretable  --hasheaders  invoiceDataTable=value rowCount=rows
+	
+endSub
+
+beginSub --name closeExcel
+	excelClose --file ${excelFileInstance} --save
+endSub
+
+beginSub --name writeInvoiceData
+	setVar --name "${tableColumnIndex}" --value 1
+	
+	excelSet --value "${out_invoiceNumber}" --file ${excelFileInstance} --getfirstsheet  --row ${tableRowIndex} --column ${tableColumnIndex} --comment "Set line item description"
+	evaluate --expression "${tableColumnIndex}+1" tableColumnIndex=value
+	
+	excelSet --value "${out_invoiceDate}" --file ${excelFileInstance} --getfirstsheet  --row ${tableRowIndex} --column ${tableColumnIndex} --comment "Set line item quantity"
+	evaluate --expression "${tableColumnIndex}+1" tableColumnIndex=value
+	
+	excelSet --value "${out_amountNumber}" --file ${excelFileInstance} --getfirstsheet  --row ${tableRowIndex} --column ${tableColumnIndex} --comment "Set line item product code"
+	
+	evaluate --expression "${tableRowIndex}+2" tableRowIndex=value
+	
 endSub
 
 beginSub --name ParsingErrorHandler
-setVar --name "${out_success}" --value false
-setVar --name "${out_code}" --value 99
-setVar --name "${out_desc}" --value "Failed to parse ${fieldName} in ${in_invoice}"
-logMessage --message " ${out_desc}" --type "Error"
-recover
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to parse ${fieldName} in ${in_invoice}"
+	logMessage --message " ${out_desc}" --type "Error"
+	recover
 endSub*23.0.0.0

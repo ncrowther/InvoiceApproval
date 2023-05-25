@@ -1,4 +1,5 @@
-∞ù// Description
+
+	Å';ò6∏πAù‘uÆæv¬˛§// Description
 //	Process invoices from outlook
 //
 // Author:	Nigel T. Crowther
@@ -73,8 +74,9 @@ defVar --name failedInvoices --type Numeric --value 0
 defVar --name scriptSuccess --type Boolean
 defVar --name adminUser --type String
 defVar --name invoiceNameWithExt --type String
-defVar --name invoiceSpreadsheet --type String --value "D:\\RPA\\github\\invoiceProcessingPAM_DM_RPA\\InvoiceApproval\\InvoiceProcessing-RPA\\testInvoices\\Momentum\\invoice.xlsx"
 defVar --name invoiceExcelFileName --type String
+defVar --name browserInstance --type Browser
+defVar --name browserInstanceName --type String
 
 logMessage --message "${robotName} starting..." --type "Info" --logonwindows  --logname Application --source Application --eventid 0
 
@@ -157,16 +159,27 @@ beginSub --name processAttachment
 			
 			goSub --label executeOCRScript
 			if --left "${success}" --operator "Is_True" --negate
+			// OCR failed
 				incrementVar --number ${failedInvoiceCount}
 				goSub --label moveInvoiceToFailedFolder
 				setVar --name "${logEntry}" --value "OCR Failed for ${company}:  ${result_desc}  File: ${invoice}"
 				goSub --label logError
 			else
-				incrementVar --number ${successfulInvoiceCount}
-				goSub --label generateIfsXmlFile
-				goSub --label writeInvoiceToGDrive
 				goSub --label startApprovalProcess
-				goSub --label moveInvoiceToPaidFolder
+				if --left "${success}" --operator "Is_True" --negate
+				// OCR not approved
+					incrementVar --number ${failedInvoiceCount}
+					goSub --label moveInvoiceToFailedFolder
+					setVar --name "${logEntry}" --value "Not approved ${company}:  ${result_desc}  File: ${invoice}"
+					goSub --label logError
+				else
+				// OCR  approved
+					incrementVar --number ${successfulInvoiceCount}
+					goSub --label generateIfsXmlFile
+					goSub --label writeInvoiceToGDrive
+					goSub --label makePayment
+					goSub --label moveInvoiceToPaidFolder
+				endIf
 			endIf
 			
 			incrementVar --number ${processedInvoiceCount}
@@ -199,7 +212,7 @@ beginSub --name startApprovalProcess
 	
 // Attended Bot
 	setVar --name "${botScript}" --value "${botScriptBaseDir}/invokeManualApprovalProcess.wal"
-	executeScript --name "${botScript}" --parameters "in_Invoice=${invoice},in_VatCurrencyAmount=${vatNumber},in_CompanyCode=${companyCode},in_Currency=${currency},in_ImageFileName=${invoiceName},in_InvoiceDate=${invoiceDate},in_InvoiceNumber=${invoiceNumber},in_NetCurrencyAmount=${amountNumber},in_PurchaseOrderReference=\"343433\",in_SupplierIdentity=${supplierId},in_spreadsheet=${invoiceSpreadsheet}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}" success=value
+	executeScript --name "${botScript}" --parameters "in_Invoice=${invoice},in_VatCurrencyAmount=${vatNumber},in_CompanyCode=${companyCode},in_Currency=${currency},in_ImageFileName=${invoiceName},in_InvoiceDate=${invoiceDate},in_InvoiceNumber=${invoiceNumber},in_NetCurrencyAmount=${amountNumber},in_PurchaseOrderReference=\"343433\",in_SupplierIdentity=${supplierId},in_spreadsheet=${invoiceExcelFileName}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}" success=value
 	
 	setVar --name "${logEntry}" --value "Completed Approval Process:  ${result_desc}"
 	goSub --label logEntry
@@ -377,4 +390,18 @@ beginSub --name executeOCRScript
 // Run the OCR script, creating the excel invoice
 	executeScript --name "${botScript}" --parameters "in_invoice=${invoice},in_invoiceExcelFileName=${invoiceExcelFileName}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc},out_invoiceNumber=${invoiceNumber},out_invoiceDate=${invoiceDate},out_amountNumber=${amountNumber},out_vatNumber=${vatNumber}"
 	
-endSub*23.0.0.0
+endSub
+
+beginSub --name makePayment
+// Invoke payment script
+	setVar --name "${botScript}" --value "${botScriptBaseDir}/makePayment.wal"
+	ifFile --file "${botScript}" --fileSystem ${fs} fileExists=value
+	if --left "${fileExists}" --operator "Is_True" --negate
+		setVar --name "${success}" --value false
+		incrementVar --number ${unidentifiedInvoiceCount}
+		setVar --name "${logEntry}" --value "No payment script"
+		return
+	endIf
+	executeScript --name "${botScript}" --parameters "in_NetCurrencyAmount=${amountNumber},in_InvoiceNumber=${invoiceNumber}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}"
+	
+endSub"	`Ÿ}≥∑xYB≥†«À™w@ï*23.0.0.0
