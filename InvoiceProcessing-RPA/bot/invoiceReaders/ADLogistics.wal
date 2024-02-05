@@ -1,0 +1,67 @@
+ë// Description
+//	Invoice template
+// Input Variables
+//	in_invoice			- The invoice to process (pdf file)
+//
+// Output Variables
+// 	out_payload			- The extracted invoice data as a json payload
+// 	out_success			- Boolean value indicating success or failure
+// 	out_code			- 00 if success, any other number represents an error code
+// 	out_desc			- Description of error code. For example "Failed to parse VAT
+//
+// Author:	Nigel T. Crowther
+// Date: 		26-May-2022
+// Copyright IBM Corporation 2022. All rights reserved
+//
+defVar --name in_invoice --type String --value "D:\\A_Consultancy\\techsales\\2023\\PlexusFreight\\InvoiceProcessing\\invoiceTemplates\\ADLogistics.pdf" --parameter  --required
+defVar --name out_success --type Boolean --value True --output
+defVar --name out_code --type String --value 0 --output
+defVar --name out_desc --type String --value SUCCESS --output
+defVar --name out_invoiceNumber --type String --value UNDEFINED --output
+defVar --name out_customerRef --type String --value UNDEFINED --output
+defVar --name out_amountText --type String --value UNDEFINED --output
+defVar --name pdf --type Pdf
+
+onError --label ParsingErrorHandler
+
+goSub --label processInvoice
+
+
+beginSub --name processInvoice
+	
+	pdfOpen --file "${in_invoice}" out_success=success pdf=value
+	if --left "${out_success}" --operator "Is_True" --negate
+		setVar --name "${out_success}" --value false
+		setVar --name "${out_code}" --value 99
+		setVar --name "${out_desc}" --value "Failed to read PDF ${in_invoice}"
+		logMessage --message " ${out_desc}" --type "Error"
+		return
+	endIf
+	
+// Extract invoice number
+	pdfRegionText --language "en-US" --region "190,379,62,17" --page 1 --dpix 110 --dpiy 110 --file ${pdf} out_invoiceNumber=value
+	trimString --text "${out_invoiceNumber}" --trimoption "TrimStartAndEnd" out_invoiceNumber=value
+	
+// Extract Total Amount
+	pdfRegionText --language "en-US" --region "696,788,45,20" --page 1 --dpix 110 --dpiy 110 --file ${pdf} out_amountText=value
+	trimString --text "${out_amountText}" --trimoption "TrimStartAndEnd" out_amountText=value
+	
+// Extract customer ref
+	pdfRegionText --language "en-US" --region "490,522,66,24" --page 1 --dpix 110 --dpiy 110 --file ${pdf} out_customerRef=value
+	trimString --text "${out_customerRef}" --trimoption "TrimStartAndEnd" out_customerRef=value
+	
+		logMessage --message "Success: ${out_success}" --type "Info"
+	logMessage --message "InvoiceNumber: ${out_invoiceNumber}" --type "Info"
+	logMessage --message "CustomerRef: ${out_customerRef}" --type "Info"
+	logMessage --message "Amount: ${out_amountText}" --type "Info"
+	
+endSub
+
+beginSub --name ParsingErrorHandler
+	setVar --name "${out_success}" --value false
+	setVar --name "${out_code}" --value 99
+	setVar --name "${out_desc}" --value "Failed to parse ${in_invoice}"
+	logMessage --message " ${out_desc}" --type "Error"
+	recover
+endSub
+*23.0.5.0

@@ -1,5 +1,4 @@
-
-	Å';ò6∏πAù‘uÆæv¬˛§// Description
+≠£// Description
 //	Process invoices from outlook
 //
 // Author:	Nigel T. Crowther
@@ -102,306 +101,306 @@ goSub --label processOutlookInvoiceFolders
 
 
 beginSub --name processOutlookInvoiceFolders
-	
+
 // Connect to IMAP Email server	
-	imapConnect --connection iannesbit_gmail --mailhost "imap.gmail.com" --mailport 993 --usessl  --integrationuseconnectiontosend  --integrationsmtpcredentials  --integrationsmtphost "smtp.gmail.com" --integrationsmtpport 587 --integrationsmtpusessl  --authenticationtype "IntegrationConnection" --enableLog  emailConnection=value
-	
+imapConnect --connection iannesbit_gmail --mailhost "imap.gmail.com" --mailport 993 --usessl  --integrationuseconnectiontosend  --integrationsmtpcredentials  --integrationsmtphost "smtp.gmail.com" --integrationsmtpport 587 --integrationsmtpusessl  --authenticationtype "IntegrationConnection" --enableLog  emailConnection=value
+
 //imapConnect --connection ntcoutlook365_microsoft_exchange_imap --mailhost "outlook.office365.com" --mailport 993 --usessl  --integrationuseconnectiontosend  --integrationsmtpcredentials  --integrationsmtphost "smtp.office365.com" --integrationsmtpport 587 --integrationsmtpusessl  --authenticationtype "IntegrationConnection" --enableLog  emailConnection=value
-	
-	goSub --label processEmails
-	
-	setVar --name "${logEntry}" --value "Bot finished"
-	goSub --label logEntry
-	
-	logMessage --message "${robotName} completed" --type "Info" --logonwindows  --logname Application --source Application --eventid 0
-	
-	if --left "${processedInvoiceCount}" --operator "Greater_Than" --right 0
-		goSub --label writeLogFile
-		goSub --label sendProcessCompletedEmail
-	endIf
-	
+
+goSub --label processEmails
+
+setVar --name "${logEntry}" --value "Bot finished"
+goSub --label logEntry
+
+logMessage --message "${robotName} completed" --type "Info" --logonwindows  --logname Application --source Application --eventid 0
+
+if --left "${processedInvoiceCount}" --operator "Greater_Than" --right 0
+	goSub --label writeLogFile
+	goSub --label sendProcessCompletedEmail
+endIf
+
 // Disconnect from the server.
-	emailDisconnect --connection ${emailConnection}
-	
+emailDisconnect --connection ${emailConnection}
+
 endSub
 
 beginSub --name processEmails
-	
+
 // Apply a filter to search  for emails  containing unpaid invoices
+
+setVar --name "${logEntry}" --value "Reading outlook folder: ${unpaidInvoicesOutlookFolder}"
+goSub --label logEntry
+
+emailApplySearchFilters --subjectdirective "All" --wordsdirective "All" --withattachment  --connection ${emailConnection}
+
+foreach --collection "${emailConnection}" --variable "${currentMessage}"
+	emailRead --message ${currentMessage} emailSubject=subject emailBody=body htmlEmailBody=htmlbody emailSender=from emailDestinatary=to emailCopy=cc emailHiddenCopy=bcc emailReceiveDate=receiveddate emailHeader=headers emailCategory=labels
 	
-	setVar --name "${logEntry}" --value "Reading outlook folder: ${unpaidInvoicesOutlookFolder}"
-	goSub --label logEntry
+	goSub --label processAttachment
 	
-	emailApplySearchFilters --subjectdirective "All" --wordsdirective "All" --withattachment  --connection ${emailConnection}
-	
-	foreach --collection "${emailConnection}" --variable "${currentMessage}"
-		emailRead --message ${currentMessage} emailSubject=subject emailBody=body htmlEmailBody=htmlbody emailSender=from emailDestinatary=to emailCopy=cc emailHiddenCopy=bcc emailReceiveDate=receiveddate emailHeader=headers emailCategory=labels
-		
-		goSub --label processAttachment
-		
-	endFor
-	
+endFor
+
 endSub
 
 beginSub --name processAttachment
-	setVar --name "${logEntry}" --value "Processing email: ${emailSubject}"
-	goSub --label logEntry
+setVar --name "${logEntry}" --value "Processing email: ${emailSubject}"
+goSub --label logEntry
+
+goSub --label getAttachments
+
+if --left "${attachmentCount}" --operator "Greater_Than" --right 0
 	
-	goSub --label getAttachments
-	
-	if --left "${attachmentCount}" --operator "Greater_Than" --right 0
+	getFiles --path "${unpaidInvoicesFolder}" invoices=value
+	foreach --collection "${invoices}" --variable "${invoice}"
 		
-		getFiles --path "${unpaidInvoicesFolder}" invoices=value
-		foreach --collection "${invoices}" --variable "${invoice}"
-			
-			setVar --name "${logEntry}" --value "Processing Invoice: ${invoice}"
-			goSub --label logEntry
-			
-			goSub --label executeOCRScript
-			if --left "${success}" --operator "Is_True" --negate
+		setVar --name "${logEntry}" --value "Processing Invoice: ${invoice}"
+		goSub --label logEntry
+		
+		goSub --label executeOCRScript
+		if --left "${success}" --operator "Is_True" --negate 
 			// OCR failed
+			incrementVar --number ${failedInvoiceCount}
+			goSub --label moveInvoiceToFailedFolder
+			setVar --name "${logEntry}" --value "OCR Failed for ${company}:  ${result_desc}  File: ${invoice}"
+			goSub --label logError
+		else
+			goSub --label startApprovalProcess
+			if --left "${success}" --operator "Is_True" --negate 
+				// OCR not approved
 				incrementVar --number ${failedInvoiceCount}
 				goSub --label moveInvoiceToFailedFolder
-				setVar --name "${logEntry}" --value "OCR Failed for ${company}:  ${result_desc}  File: ${invoice}"
+				setVar --name "${logEntry}" --value "Not approved ${company}:  ${result_desc}  File: ${invoice}"
 				goSub --label logError
 			else
-				goSub --label startApprovalProcess
-				if --left "${success}" --operator "Is_True" --negate
-				// OCR not approved
-					incrementVar --number ${failedInvoiceCount}
-					goSub --label moveInvoiceToFailedFolder
-					setVar --name "${logEntry}" --value "Not approved ${company}:  ${result_desc}  File: ${invoice}"
-					goSub --label logError
-				else
 				// OCR  approved
-					incrementVar --number ${successfulInvoiceCount}
-					goSub --label generateIfsXmlFile
-					goSub --label writeInvoiceToGDrive
-					goSub --label makePayment
-					goSub --label moveInvoiceToPaidFolder
-				endIf
+				incrementVar --number ${successfulInvoiceCount}
+				goSub --label generateIfsXmlFile
+				goSub --label writeInvoiceToGDrive
+				goSub --label makePayment
+				goSub --label moveInvoiceToPaidFolder
 			endIf
-			
-			incrementVar --number ${processedInvoiceCount}
-		endFor
-	endIf
+		endIf
+		
+		incrementVar --number ${processedInvoiceCount}
+	endFor
+endIf
 endSub
 
 beginSub --name generateIfsXmlFile
 // Create a Kofax simulated xml
-	goSub --label getInvoiceName
-	setVar --name "${ifsFileName}" --value "${ifsDropFolder}\\${invoiceName}.xml"
-	
-	openTextWriter --mode "OpenOrCreate" --autoflush  --share "None" --path "${ifsFileName}" --encoding "Default" ifsXml=value
-	setVar --name "${ifsBodyXml}" --value "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\r\n<MCC_KOFAX_SUPPLIER_INVOICE>\r\n  <Header>\r\n    <DocumentType>INVOICE</DocumentType>\r\n    <ImageFileName>${invoice}</ImageFileName>\r\n    <CompanyCode>${companyCode}</CompanyCode>\r\n    <InvoiceNumber>${invoiceNumber}</InvoiceNumber>\r\n    <PurchaseOrderReference></PurchaseOrderReference>\r\n    <SupplierIdentity>${supplierId}</SupplierIdentity>\r\n    <InvoiceDate>${invoiceDate}</InvoiceDate>\r\n    <Currency>${currency}</Currency>\r\n    <NetCurrencyAmount>${amountNumber}</NetCurrencyAmount>\r\n    <VATCurrencyAmount>${vatNumber}</VATCurrencyAmount>\r\n  </Header>\r\n</MCC_KOFAX_SUPPLIER_INVOICE>"
-	textWrite --text "${ifsBodyXml}" --file ${ifsXml}
-	textFileClose --file ${ifsXml}
-	
-	setVar --name "${logEntry}" --value "Created IFS file:  ${ifsFileName}"
-	goSub --label logEntry
+goSub --label getInvoiceName
+setVar --name "${ifsFileName}" --value "${ifsDropFolder}\\${invoiceName}.xml"
+
+openTextWriter --mode "OpenOrCreate" --autoflush  --share "None" --path "${ifsFileName}" --encoding "Default" ifsXml=value
+setVar --name "${ifsBodyXml}" --value "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\r\n<MCC_KOFAX_SUPPLIER_INVOICE>\r\n  <Header>\r\n    <DocumentType>INVOICE</DocumentType>\r\n    <ImageFileName>${invoice}</ImageFileName>\r\n    <CompanyCode>${companyCode}</CompanyCode>\r\n    <InvoiceNumber>${invoiceNumber}</InvoiceNumber>\r\n    <PurchaseOrderReference></PurchaseOrderReference>\r\n    <SupplierIdentity>${supplierId}</SupplierIdentity>\r\n    <InvoiceDate>${invoiceDate}</InvoiceDate>\r\n    <Currency>${currency}</Currency>\r\n    <NetCurrencyAmount>${amountNumber}</NetCurrencyAmount>\r\n    <VATCurrencyAmount>${vatNumber}</VATCurrencyAmount>\r\n  </Header>\r\n</MCC_KOFAX_SUPPLIER_INVOICE>"
+textWrite --text "${ifsBodyXml}" --file ${ifsXml}
+textFileClose --file ${ifsXml}
+
+setVar --name "${logEntry}" --value "Created IFS file:  ${ifsFileName}"
+goSub --label logEntry
 endSub
 
 beginSub --name startApprovalProcess
 // Start a PAM approval process
-	goSub --label getInvoiceName
-	
-	
+goSub --label getInvoiceName
+
+
 // PAM
 //setVar --name "${botScript}" --value "${botScriptBaseDir}/invokePAMApprovalProcess.wal"
 //executeScript --name "${botScript}" --parameters "in_VatCurrencyAmount=${vatNumber},in_CompanyCode=${companyCode},in_Currency=${currency},in_ImageFileName=${invoiceName},in_InvoiceDate=${invoiceDate},in_InvoiceNumber=${invoiceNumber},in_NetCurrencyAmount=${amountNumber},in_PurchaseOrderReference=\"343433\",in_SupplierIdentity=${supplierId}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}"
-	
+
 // Attended Bot
-	setVar --name "${botScript}" --value "${botScriptBaseDir}/invokeManualApprovalProcess.wal"
-	executeScript --name "${botScript}" --parameters "in_Invoice=${invoice},in_VatCurrencyAmount=${vatNumber},in_CompanyCode=${companyCode},in_Currency=${currency},in_ImageFileName=${invoiceName},in_InvoiceDate=${invoiceDate},in_InvoiceNumber=${invoiceNumber},in_NetCurrencyAmount=${amountNumber},in_PurchaseOrderReference=\"343433\",in_SupplierIdentity=${supplierId},in_spreadsheet=${invoiceExcelFileName}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}" success=value
-	
-	setVar --name "${logEntry}" --value "Completed Approval Process:  ${result_desc}"
-	goSub --label logEntry
+setVar --name "${botScript}" --value "${botScriptBaseDir}/invokeManualApprovalProcess.wal"
+executeScript --name "${botScript}" --parameters "in_Invoice=${invoice},in_VatCurrencyAmount=${vatNumber},in_CompanyCode=${companyCode},in_Currency=${currency},in_ImageFileName=${invoiceName},in_InvoiceDate=${invoiceDate},in_InvoiceNumber=${invoiceNumber},in_NetCurrencyAmount=${amountNumber},in_PurchaseOrderReference=\"343433\",in_SupplierIdentity=${supplierId},in_spreadsheet=${invoiceExcelFileName}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}" success=value
+
+setVar --name "${logEntry}" --value "Completed Approval Process:  ${result_desc}"
+goSub --label logEntry
 endSub
 
 beginSub --name writeInvoiceToGDrive
-	
-	goSub --label getInvoiceName
-	setVar --name "${invoiceName}" --value "${invoiceNameWithExt}"
-	googleDriveConnect --name nesbitgdrive_google_drive googleDrive=value
-	
+
+goSub --label getInvoiceName
+setVar --name "${invoiceName}" --value "${invoiceNameWithExt}"
+googleDriveConnect --name nesbitgdrive_google_drive googleDrive=value
+
 //logMessage --message "Deleting invoice from Google  folder (if it exsits)" --type "Info"
 //fileDelete --file "/Invoices/${invoiceName}" --fileSystem ${googleDrive}	
-	
-	ifFile --file "/Invoices/${invoiceName}" --fileSystem ${googleDrive} fileExists=value
-	if --left "${fileExists}" --operator "Is_True" --negate
-		logMessage --message "Moving invoice  to Google  folder" --type "Info"
-		uploadStorage --fileSystem ${googleDrive} --source "${invoice}" --target "/Invoices/${invoiceName}"
-	endIf
-	
+
+ifFile --file "/Invoices/${invoiceName}" --fileSystem ${googleDrive} fileExists=value
+if --left "${fileExists}" --operator "Is_True" --negate 
+	logMessage --message "Moving invoice  to Google  folder" --type "Info"
+	uploadStorage --fileSystem ${googleDrive} --source "${invoice}" --target "/Invoices/${invoiceName}"
+endIf
+
 endSub
 
 beginSub --name moveInvoiceToPaidFolder
-	emailMove --folder ProcessedInvoices --message ${currentMessage}
-	goSub --label generateTimestamp
-	setVar --name "${paidInvoiceName}" --value "${paidInvoicesFolder}\\${timestamp}_${company}_${invoiceNumber}.pdf"
-	trimString --text "${paidInvoiceName}" --trimoption "TrimEnd" paidInvoiceName=value
-	replaceText --texttoparse "${paidInvoiceName}" --useregex  --pattern "\\n" --regexOptions "0" paidInvoiceName=value
-	ifFile --file "${paidInvoiceName}" --fileSystem ${fs} fileExists=value
-	if --left "${fileExists}" --operator "Is_True" --negate
-		fileRename --file "${invoice}" --newname "${paidInvoiceName}" --fileSystem ${fs}
-	endIf
-	
-	setVar --name "${logEntry}" --value "Invoice moved to ${paidInvoiceName}"
-	goSub --label logEntry
+emailMove --folder ProcessedInvoices --message ${currentMessage}
+goSub --label generateTimestamp
+setVar --name "${paidInvoiceName}" --value "${paidInvoicesFolder}\\${timestamp}_${company}_${invoiceNumber}.pdf"
+trimString --text "${paidInvoiceName}" --trimoption "TrimEnd" paidInvoiceName=value
+replaceText --texttoparse "${paidInvoiceName}" --useregex  --pattern "\\n" --regexOptions "0" paidInvoiceName=value
+ifFile --file "${paidInvoiceName}" --fileSystem ${fs} fileExists=value
+if --left "${fileExists}" --operator "Is_True" --negate 
+	fileRename --file "${invoice}" --newname "${paidInvoiceName}" --fileSystem ${fs}
+endIf
+
+setVar --name "${logEntry}" --value "Invoice moved to ${paidInvoiceName}"
+goSub --label logEntry
 endSub
 
 beginSub --name moveInvoiceToFailedFolder
-	emailMove --folder FailedInvoices --message ${currentMessage}
-	goSub --label generateTimestamp
-	setVar --name "${failedInvoiceName}" --value "${failedInvoicesFolder}\\${timestamp}_${company}_${invoiceNumber}.pdf"
-	trimString --text "${failedInvoiceName}" --trimoption "TrimEnd" failedInvoiceName=value
-	replaceText --texttoparse "${failedInvoiceName}" --useregex  --pattern "\\n" --regexOptions "0" failedInvoiceName=value
-	ifFile --file "${failedInvoiceName}" --fileSystem ${fs} fileExists=value
-	if --left "${fileExists}" --operator "Is_True" --negate
-		fileRename --file "${invoice}" --newname "${failedInvoiceName}" --fileSystem ${fs}
-	endIf
-	
-	setVar --name "${logEntry}" --value "FAILURE: Invoice moved to ${failedInvoiceName}"
-	goSub --label logEntry
+emailMove --folder FailedInvoices --message ${currentMessage}
+goSub --label generateTimestamp
+setVar --name "${failedInvoiceName}" --value "${failedInvoicesFolder}\\${timestamp}_${company}_${invoiceNumber}.pdf"
+trimString --text "${failedInvoiceName}" --trimoption "TrimEnd" failedInvoiceName=value
+replaceText --texttoparse "${failedInvoiceName}" --useregex  --pattern "\\n" --regexOptions "0" failedInvoiceName=value
+ifFile --file "${failedInvoiceName}" --fileSystem ${fs} fileExists=value
+if --left "${fileExists}" --operator "Is_True" --negate 
+	fileRename --file "${invoice}" --newname "${failedInvoiceName}" --fileSystem ${fs}
+endIf
+
+setVar --name "${logEntry}" --value "FAILURE: Invoice moved to ${failedInvoiceName}"
+goSub --label logEntry
 endSub
 
 beginSub --name generateTimestamp
-	getCurrentDateAndTime --localorutc "LocalTime" --comment "Get todays date" today=value
-	dateTimeToText --culture "en-US" --date "${today}" --usecustomformat  --customformat yyyyMMddHHmmss timestamp=value
+getCurrentDateAndTime --localorutc "LocalTime" --comment "Get todays date" today=value
+dateTimeToText --culture "en-US" --date "${today}" --usecustomformat  --customformat yyyyMMddHHmmss timestamp=value
 endSub
 
 beginSub --name getErrorMessage
-	getEnvVar --name COMPUTERNAME --target "Process" windowsHost=value
-	setVar --name "${errorMessage}" --value "FAILURE: An error occurred in RPA Robot.\r\nRobot Name: ${robotName}\r\nWindows Host: ${windowsHost}\r\nError Message: ${rpa:errorMessage}\r\nSubroutine: ${rpa:errorSubName}\r\nLine Number: ${rpa:lineNumber}"
+getEnvVar --name COMPUTERNAME --target "Process" windowsHost=value
+setVar --name "${errorMessage}" --value "FAILURE: An error occurred in RPA Robot.\r\nRobot Name: ${robotName}\r\nWindows Host: ${windowsHost}\r\nError Message: ${rpa:errorMessage}\r\nSubroutine: ${rpa:errorSubName}\r\nLine Number: ${rpa:lineNumber}"
 endSub
 
 beginSub --name Main_ErrorHandler
-	goSub --label getErrorMessage
-	goSub --label logError
+goSub --label getErrorMessage
+goSub --label logError
 endSub
 
 beginSub --name getInvoiceName
-	getStringLength --text "${unpaidInvoicesFolder}" invoiceNameStartPos=value
-	evaluate --expression "${invoiceNameStartPos} + 2" invoiceNameStartPos=value
-	getSubString --text "${invoice}" --start ${invoiceNameStartPos} --length 100 invoiceNameWithExt=value
-	replaceText --texttoparse "${invoiceNameWithExt}" --textpattern ".pdf" invoiceName=value
-	replaceText --texttoparse "${invoiceName}" --textpattern ".xlsx" invoiceName=value
-	replaceText --texttoparse "${invoiceName}" --textpattern ".xls" invoiceName=value
+getStringLength --text "${unpaidInvoicesFolder}" invoiceNameStartPos=value
+evaluate --expression "${invoiceNameStartPos} + 2" invoiceNameStartPos=value
+getSubString --text "${invoice}" --start ${invoiceNameStartPos} --length 100 invoiceNameWithExt=value
+replaceText --texttoparse "${invoiceNameWithExt}" --textpattern ".pdf" invoiceName=value
+replaceText --texttoparse "${invoiceName}" --textpattern ".xlsx" invoiceName=value
+replaceText --texttoparse "${invoiceName}" --textpattern ".xls" invoiceName=value
 endSub
 
 beginSub --name logEntry
-	logMessage --message "${logEntry}" --type "Info" --logonwindows  --logname Application --source Application --eventid 0
-	goSub --label generateTimestamp
-	setVar --name "${logData}" --value "${logData}\r\n${timestamp} : ${logEntry}\r\n"
+logMessage --message "${logEntry}" --type "Info" --logonwindows  --logname Application --source Application --eventid 0
+goSub --label generateTimestamp
+setVar --name "${logData}" --value "${logData}\r\n${timestamp} : ${logEntry}\r\n"
 endSub
 
 beginSub --name logError
-	goSub --label generateTimestamp
-	setVar --name "${logData}" --value "${logData}\r\n${timestamp} : ${errorMessage}\r\n"
-	goSub --label writeLogFile
+goSub --label generateTimestamp
+setVar --name "${logData}" --value "${logData}\r\n${timestamp} : ${errorMessage}\r\n"
+goSub --label writeLogFile
 endSub
 
 beginSub --name writeLogFile
-	
-	ifFolder --path "${logDir}" --fileSystem ${fs} folderExists=value
-	
-	goSub --label generateTimestamp
-	setVar --name "${logFileName}" --value "${logDir}/log_${timestamp}.log"
-	openTextWriter --mode "OpenOrCreate" --autoflush  --share "None" --path "${logFileName}" --encoding "Default" logFile=value
-	textWrite --text "${logData}" --file ${logFile}
-	textFileClose --file ${logFile}
+
+ifFolder --path "${logDir}" --fileSystem ${fs} folderExists=value
+
+goSub --label generateTimestamp
+setVar --name "${logFileName}" --value "${logDir}/log_${timestamp}.log"
+openTextWriter --mode "OpenOrCreate" --autoflush  --share "None" --path "${logFileName}" --encoding "Default" logFile=value
+textWrite --text "${logData}" --file ${logFile}
+textFileClose --file ${logFile}
 endSub
 
 beginSub --name getAttachments
-	emailGetAttachment --outputpath "${unpaidInvoicesFolder}" --acceptinlineattachments  --message ${currentMessage} attachmentsDirectory=value
-	count --collection "${attachmentsDirectory}" attachmentCount=value
-	
+emailGetAttachment --outputpath "${unpaidInvoicesFolder}" --acceptinlineattachments  --message ${currentMessage} attachmentsDirectory=value
+count --collection "${attachmentsDirectory}" attachmentCount=value
+
 endSub
 beginSub --name prepareDirectories
-	ifFolder --path "${unpaidInvoicesFolder}" --fileSystem ${fs} folderExists=value
-	if --left "${folderExists}" --operator "Is_True" --negate
-		createDir --path "${unpaidInvoicesFolder}" --fileSystem ${fs}
-	endIf
-	
-	ifFolder --path "${paidInvoicesFolder}" --fileSystem ${fs} folderExists=value
-	if --left "${folderExists}" --operator "Is_True" --negate
-		createDir --path "${paidInvoicesFolder}" --fileSystem ${fs}
-	endIf
-	
-	ifFolder --path "${failedInvoicesFolder}" --fileSystem ${fs} folderExists=value
-	if --left "${folderExists}" --operator "Is_True" --negate
-		createDir --path "${failedInvoicesFolder}" --fileSystem ${fs}
-	endIf
-	
-	ifFolder --path "${ifsDropFolder}" --fileSystem ${fs} folderExists=value
-	if --left "${folderExists}" --operator "Is_True" --negate
-		createDir --path "${ifsDropFolder}" --fileSystem ${fs}
-	endIf
-	
-	ifFolder --path "${logDir}" --fileSystem ${fs} folderExists=value
-	if --left "${folderExists}" --operator "Is_True" --negate
-		createDir --path "${logDir}" --fileSystem ${fs}
-	endIf
+ifFolder --path "${unpaidInvoicesFolder}" --fileSystem ${fs} folderExists=value
+if --left "${folderExists}" --operator "Is_True" --negate 
+	createDir --path "${unpaidInvoicesFolder}" --fileSystem ${fs}
+endIf
+
+ifFolder --path "${paidInvoicesFolder}" --fileSystem ${fs} folderExists=value
+if --left "${folderExists}" --operator "Is_True" --negate 
+	createDir --path "${paidInvoicesFolder}" --fileSystem ${fs}
+endIf
+
+ifFolder --path "${failedInvoicesFolder}" --fileSystem ${fs} folderExists=value
+if --left "${folderExists}" --operator "Is_True" --negate 
+	createDir --path "${failedInvoicesFolder}" --fileSystem ${fs}
+endIf
+
+ifFolder --path "${ifsDropFolder}" --fileSystem ${fs} folderExists=value
+if --left "${folderExists}" --operator "Is_True" --negate 
+	createDir --path "${ifsDropFolder}" --fileSystem ${fs}
+endIf
+
+ifFolder --path "${logDir}" --fileSystem ${fs} folderExists=value
+if --left "${folderExists}" --operator "Is_True" --negate 
+	createDir --path "${logDir}" --fileSystem ${fs}
+endIf
 endSub
 
 beginSub --name sendProcessCompletedEmail
-	logMessage --message "Send Bot completion email to ${adminUser}" --type "Info" --logonwindows  --logname Application --source Application --eventid 0
-	
-	setVar --name "${botScript}" --value "${botScriptBaseDir}/sendEmail.wal"
-	executeScript --name "${botScript}" --parameters "in_emailServerConnectionInstance=${emailConnection},in_logfile=${logFileName},in_subject=\"Bot Completed\",in_processedInvoices=${processedInvoiceCount},in_sucessfullyProcessed=${successfulInvoiceCount},in_failedProcessed=${failedInvoiceCount},in_unidentifiedInvoices=${unidentifiedInvoiceCount},in_emailUsername=${outlookUser},in_recipients=${adminUser}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}," success=value
-	if --left "${success}" --operator "Is_True" --negate
-		setVar --name "${logEntry}" --value "Failed to determine invoice for email: ${emailSubject}"
-		goSub --label logEntry
-		return
-	endIf
+logMessage --message "Send Bot completion email to ${adminUser}" --type "Info" --logonwindows  --logname Application --source Application --eventid 0
+
+setVar --name "${botScript}" --value "${botScriptBaseDir}/sendEmail.wal"
+executeScript --name "${botScript}" --parameters "in_emailServerConnectionInstance=${emailConnection},in_logfile=${logFileName},in_subject=\"Bot Completed\",in_processedInvoices=${processedInvoiceCount},in_sucessfullyProcessed=${successfulInvoiceCount},in_failedProcessed=${failedInvoiceCount},in_unidentifiedInvoices=${unidentifiedInvoiceCount},in_emailUsername=${outlookUser},in_recipients=${adminUser}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}," success=value
+if --left "${success}" --operator "Is_True" --negate 
+	setVar --name "${logEntry}" --value "Failed to determine invoice for email: ${emailSubject}"
+	goSub --label logEntry
+	return
+endIf
 endSub
 beginSub --name executeOCRScript
 // Excute rules (using IBM DM)
 // executeScript --name "${projectBase}\\bot\\determineInvoiceTypeDM.wal" --parameters "in_sender=${emailSender},in_subject=${emailSubject},in_invoice=${invoice}" --output "out_success=${scriptSuccess},out_code=${result_code},out_desc=${result_desc},out_company=${company},out_companyCode=${companyCode},out_supplierId=${supplierId}" success=value errorMessage=errormessage
 // Excute rules (using RPA Rules)
-	executeScript --name "${botScriptBaseDir}/determineInvoiceType.wal" --parameters "in_subject=${emailSubject},in_sender=${emailSender},in_invoice=${invoice}" --output "out_success=${scriptSuccess},out_code=${result_code},out_desc=${result_desc},out_company=${company},out_companyCode=${companyCode},out_supplierId=${supplierId}" success=value
-	if --left "${scriptSuccess}" --operator "Is_True" --negate
-		setVar --name "${success}" --value false
-		incrementVar --number ${unidentifiedInvoiceCount}
-		setVar --name "${logEntry}" --value "Failed to determine invoice for email: ${emailSubject}"
-		goSub --label logEntry
-		return
-	endIf
-	
-	setVar --name "${logEntry}" --value "Process ${company} invoice"
+executeScript --name "${botScriptBaseDir}/determineInvoiceType.wal" --parameters "in_subject=${emailSubject},in_sender=${emailSender},in_invoice=${invoice}" --output "out_success=${scriptSuccess},out_code=${result_code},out_desc=${result_desc},out_company=${company},out_companyCode=${companyCode},out_supplierId=${supplierId}" success=value
+if --left "${scriptSuccess}" --operator "Is_True" --negate 
+	setVar --name "${success}" --value false
+	incrementVar --number ${unidentifiedInvoiceCount}
+	setVar --name "${logEntry}" --value "Failed to determine invoice for email: ${emailSubject}"
 	goSub --label logEntry
-	
+	return
+endIf
+
+setVar --name "${logEntry}" --value "Process ${company} invoice"
+goSub --label logEntry
+
 /////
-	setVar --name "${botScript}" --value "${botScriptBaseDir}/invoiceReaders/${company}.wal"
-	ifFile --file "${botScript}" --fileSystem ${fs} fileExists=value
-	if --left "${fileExists}" --operator "Is_True" --negate
-		setVar --name "${success}" --value false
-		incrementVar --number ${unidentifiedInvoiceCount}
-		setVar --name "${logEntry}" --value "No script for ${company}.  Created from template. Please edit ${botScriptBaseDir}/invoiceReaders/${company}.wal"
-		fileCopy --from "${botScriptBaseDir}/OcrTemplates/INVOICE_TEMPLATE.wal" --to "${botScriptBaseDir}/invoiceReaders/"
-		fileRename --file "${botScriptBaseDir}/invoiceReaders/INVOICE_TEMPLATE.wal" --newname "${botScriptBaseDir}/invoiceReaders/${company}.wal"
-		goSub --label logEntry
-		return
-	endIf
+setVar --name "${botScript}" --value "${botScriptBaseDir}\\invoiceReaders\\${company}.wal"
+ifFile --file "${botScript}" --fileSystem ${fs} fileExists=value
+if --left "${fileExists}" --operator "Is_True" --negate 
+	setVar --name "${success}" --value false
+	incrementVar --number ${unidentifiedInvoiceCount}
+	setVar --name "${logEntry}" --value "No script for ${company}.  Created from template. Please edit ${botScriptBaseDir}/invoiceReaders/${company}.wal"
+	fileCopy --from "${botScriptBaseDir}/OcrTemplates/INVOICE_TEMPLATE.wal" --to "${botScriptBaseDir}/invoiceReaders/"
+	fileRename --file "${botScriptBaseDir}/invoiceReaders/INVOICE_TEMPLATE.wal" --newname "${botScriptBaseDir}/invoiceReaders/${company}.wal"
+	goSub --label logEntry
+	return
+endIf
 // Create the excel invoice name using the bot script name (its the same name different extension)
-	setVar --name "${invoiceExcelFileName}" --value "${botScript}"
-	replaceText --texttoparse "${invoiceExcelFileName}" --textpattern ".wal" --replacement ".xlsx" invoiceExcelFileName=value
-	replaceText --texttoparse "${invoiceExcelFileName}" --textpattern "/" --replacement "\\" invoiceExcelFileName=value
+setVar --name "${invoiceExcelFileName}" --value "${botScript}"
+replaceText --texttoparse "${invoiceExcelFileName}" --textpattern ".wal" --replacement ".xlsx" invoiceExcelFileName=value
+replaceText --texttoparse "${invoiceExcelFileName}" --textpattern "/" --replacement "\\" invoiceExcelFileName=value
 // Run the OCR script, creating the excel invoice
-	executeScript --name "${botScript}" --parameters "in_invoice=${invoice},in_invoiceExcelFileName=${invoiceExcelFileName}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc},out_invoiceNumber=${invoiceNumber},out_invoiceDate=${invoiceDate},out_amountNumber=${amountNumber},out_vatNumber=${vatNumber}"
-	
+executeScript --name "${botScript}" --parameters "in_invoice=${invoice},in_invoiceExcelFileName=${invoiceExcelFileName}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc},out_invoiceNumber=${invoiceNumber},out_invoiceDate=${invoiceDate},out_amountNumber=${amountNumber},out_vatNumber=${vatNumber}"
+
 endSub
 
 beginSub --name makePayment
 // Invoke payment script
-	setVar --name "${botScript}" --value "${botScriptBaseDir}/makePayment.wal"
-	ifFile --file "${botScript}" --fileSystem ${fs} fileExists=value
-	if --left "${fileExists}" --operator "Is_True" --negate
-		setVar --name "${success}" --value false
-		incrementVar --number ${unidentifiedInvoiceCount}
-		setVar --name "${logEntry}" --value "No payment script"
-		return
-	endIf
-	executeScript --name "${botScript}" --parameters "in_NetCurrencyAmount=${amountNumber},in_InvoiceNumber=${invoiceNumber}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}"
-	
-endSub"	`Ÿ}≥∑xYB≥†«À™w@ï*23.0.0.0
+setVar --name "${botScript}" --value "${botScriptBaseDir}/makePayment.wal"
+ifFile --file "${botScript}" --fileSystem ${fs} fileExists=value
+if --left "${fileExists}" --operator "Is_True" --negate 
+	setVar --name "${success}" --value false
+	incrementVar --number ${unidentifiedInvoiceCount}
+	setVar --name "${logEntry}" --value "No payment script"
+	return
+endIf
+executeScript --name "${botScript}" --parameters "in_NetCurrencyAmount=${amountNumber},in_InvoiceNumber=${invoiceNumber}" --output "out_success=${success},out_code=${result_code},out_desc=${result_desc}"
+
+endSub*	23.0.10.0
